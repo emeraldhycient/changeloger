@@ -1,6 +1,7 @@
 import { z } from "zod"
 import { requireAuth, requireWorkspaceRole } from "@/lib/auth/middleware"
 import { findRepositoriesByWorkspace } from "@/lib/db/queries/repositories"
+import { enforceRepoLimit } from "@/lib/middleware/plan-enforcement"
 import { handleApiError, ValidationError } from "@/lib/utils/errors"
 import { prisma } from "@/lib/db/prisma"
 
@@ -35,6 +36,7 @@ export async function POST(request: Request) {
     if (!parsed.success) throw new ValidationError("Invalid input", parsed.error.format())
 
     await requireWorkspaceRole(parsed.data.workspaceId, "admin")
+    await enforceRepoLimit(parsed.data.workspaceId)
 
     const repo = await prisma.repository.create({ data: parsed.data })
     return Response.json(repo, { status: 201 })
