@@ -398,7 +398,7 @@ function ComparisonCell({
 
 function MockScreenshot({ label }: { label: string }) {
   return (
-    <div className="relative aspect-video w-full overflow-hidden rounded-xl border border-border/50 bg-gradient-to-br from-muted/60 via-muted/30 to-muted/60">
+    <div className="relative aspect-video w-full overflow-hidden border border-border/50 bg-gradient-to-br from-muted/60 via-muted/30 to-muted/60">
       <div className="absolute inset-0 flex flex-col items-center justify-center gap-3">
         {/* Fake browser chrome */}
         <div className="flex w-3/4 max-w-xs items-center gap-1.5 rounded-t-lg border border-border/30 bg-muted/60 px-3 py-2">
@@ -504,7 +504,7 @@ export default function FeaturesPage() {
                   key={s.id}
                   data-section={s.id}
                   onClick={() => scrollToSection(s.id)}
-                  className={`flex shrink-0 items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
+                  className={`flex shrink-0 items-center gap-1.5 px-3 py-1.5 text-xs font-medium transition-colors ${
                     isActive
                       ? "bg-primary/10 text-primary"
                       : "text-muted-foreground hover:bg-muted hover:text-foreground"
@@ -542,7 +542,7 @@ export default function FeaturesPage() {
                 className="flex-1"
               >
                 <div className="mb-4 inline-flex items-center gap-2">
-                  <div className="flex size-8 items-center justify-center rounded-lg bg-primary/10">
+                  <div className="flex size-8 items-center justify-center bg-primary/10">
                     <section.icon className="size-4 text-primary" />
                   </div>
                   <span className="text-xs font-semibold uppercase tracking-wider text-primary">
@@ -592,7 +592,7 @@ export default function FeaturesPage() {
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ duration: 0.5 }}
-                className="rounded-xl border border-primary/20 bg-primary/5 px-8 py-10 text-center"
+                className="border border-primary/20 bg-primary/5 px-8 py-10 text-center"
               >
                 <h3 className="text-xl font-bold sm:text-2xl">
                   {ctaBanners[Math.floor(i / 3)].heading}

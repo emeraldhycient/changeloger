@@ -9,7 +9,7 @@ interface LogoProps {
 export function Logo({ className, iconOnly = false }: LogoProps) {
   return (
     <Link href="/" className={cn("flex items-center gap-2", className)}>
-      <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary">
+      <div className="flex h-8 w-8 items-center justify-center bg-primary">
         <svg
           viewBox="0 0 24 24"
           fill="none"

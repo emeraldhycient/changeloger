@@ -51,7 +51,7 @@ export function Navbar() {
             <li key={link.href}>
               <Link
                 href={link.href}
-                className="rounded-md px-3 py-2 text-sm text-muted-foreground transition-colors hover:text-foreground"
+                className="px-3 py-2 text-sm text-muted-foreground transition-colors hover:text-foreground"
               >
                 {link.label}
               </Link>
@@ -66,7 +66,7 @@ export function Navbar() {
           <Button
             asChild
             size="sm"
-            className="gradient-primary rounded-lg text-white"
+            className="gradient-primary text-white"
           >
             <Link href="/sign-up">Get Started Free</Link>
           </Button>
@@ -92,7 +92,7 @@ export function Navbar() {
                     <Link
                       href={link.href}
                       onClick={() => setMobileOpen(false)}
-                      className="block rounded-md px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                      className="block px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
                     >
                       {link.label}
                     </Link>
@@ -110,7 +110,7 @@ export function Navbar() {
                 </Button>
                 <Button
                   asChild
-                  className="gradient-primary rounded-lg text-white"
+                  className="gradient-primary text-white"
                 >
                   <Link
                     href="/sign-up"

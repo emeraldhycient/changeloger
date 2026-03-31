@@ -68,7 +68,7 @@ const fadeUpItem: Variants = {
 
 function HeroSection() {
   return (
-    <section className="relative overflow-hidden pt-12 pb-24 sm:pt-16 sm:pb-32">
+    <section className="relative overflow-hidden pt-28 pb-24 sm:pt-36 sm:pb-32">
       {/* Background glow */}
       <div
         aria-hidden
@@ -123,11 +123,11 @@ function HeroSection() {
             <Button
               asChild
               size="lg"
-              className="gradient-primary rounded-lg px-6 text-sm font-semibold text-white"
+              className="gradient-primary px-6 text-sm font-semibold text-white"
             >
               <Link href="/signup">Get Started Free</Link>
             </Button>
-            <Button asChild variant="outline" size="lg" className="rounded-lg px-6 text-sm">
+            <Button asChild variant="outline" size="lg" className=" px-6 text-sm">
               <Link href="/demo">View Demo</Link>
             </Button>
           </motion.div>
@@ -137,7 +137,7 @@ function HeroSection() {
             variants={fadeUpItem}
             className="mx-auto mt-8 w-full max-w-4xl"
           >
-            <div className="overflow-hidden rounded-xl border border-border bg-card shadow-2xl shadow-[#6C63FF]/5">
+            <div className="overflow-hidden border border-border bg-card shadow-2xl shadow-[#6C63FF]/5">
               {/* Browser chrome bar */}
               <div className="flex items-center gap-2 border-b border-border bg-muted/50 px-4 py-3">
                 <span className="size-3 rounded-full bg-red-400/80" />
@@ -303,7 +303,7 @@ function HowItWorksSection() {
         >
           {howItWorks.map((item) => (
             <motion.div key={item.title} variants={fadeUpItem}>
-              <Card className="h-full rounded-xl transition-transform duration-300 hover:-translate-y-1">
+              <Card className="h-full transition-transform duration-300 hover:-translate-y-1">
                 <CardHeader>
                   <div
                     className={`mb-2 flex size-12 items-center justify-center rounded-lg ${item.bg}`}
@@ -386,7 +386,7 @@ function ChangelogPreviewSection() {
         </motion.div>
 
         <motion.div {...useFadeUp(0.1)} className="mx-auto max-w-3xl">
-          <Card className="rounded-xl">
+          <Card >
             <Tabs defaultValue="rendered">
               <div className="flex items-center border-b border-border px-4 pt-2">
                 <TabsList className="bg-transparent">
@@ -424,7 +424,7 @@ function ChangelogPreviewSection() {
               </TabsContent>
 
               <TabsContent value="markdown" className="p-6">
-                <pre className="overflow-x-auto rounded-lg bg-muted/50 p-4 font-mono text-sm leading-relaxed text-foreground/80">
+                <pre className="overflow-x-auto bg-muted/50 p-4 font-mono text-sm leading-relaxed text-foreground/80">
                   {markdownContent}
                 </pre>
               </TabsContent>
@@ -448,11 +448,11 @@ const deepDives = [
     badges: ["GPT-4 powered", "Custom tone controls", "Multi-language"],
     icon: Sparkles,
     illustration: (
-      <div className="space-y-3 rounded-xl border border-border bg-card p-5">
+      <div className="space-y-3 border border-border bg-card p-5">
         <p className="text-xs font-medium text-muted-foreground uppercase">
           Before (raw commit)
         </p>
-        <div className="rounded-lg bg-muted/50 p-3 font-mono text-xs text-muted-foreground">
+        <div className="bg-muted/50 p-3 font-mono text-xs text-muted-foreground">
           fix(auth): handle edge case in token refresh when exp &lt; iat
         </div>
         <div className="flex justify-center py-1">
@@ -461,7 +461,7 @@ const deepDives = [
         <p className="text-xs font-medium text-muted-foreground uppercase">
           After (generated)
         </p>
-        <div className="rounded-lg bg-muted/50 p-3 text-sm text-foreground">
+        <div className="bg-muted/50 p-3 text-sm text-foreground">
           <span className="font-medium text-blue-400">Fixed:</span> Resolved a
           token refresh bug that could log users out prematurely when server
           clocks were slightly out of sync.
@@ -476,14 +476,14 @@ const deepDives = [
     badges: ["Real-time cursors", "Inline comments", "Approval flow"],
     icon: Users,
     illustration: (
-      <div className="rounded-xl border border-border bg-card p-5">
+      <div className="border border-border bg-card p-5">
         <div className="mb-3 flex items-center gap-2 text-xs text-muted-foreground">
           <div className="size-2 rounded-full bg-emerald-400" />
           <span>Sarah is editing&hellip;</span>
           <div className="ml-2 size-2 rounded-full bg-blue-400" />
           <span>James is viewing</span>
         </div>
-        <div className="space-y-2 rounded-lg bg-muted/50 p-3 text-sm">
+        <div className="space-y-2 bg-muted/50 p-3 text-sm">
           <p>
             <span className="border-l-2 border-emerald-400 pl-2">
               Added OAuth 2.0 social login with GitHub and Google
@@ -514,11 +514,11 @@ const deepDives = [
     badges: ["Copy-paste embed", "Customizable theme", "Auto-updates"],
     icon: PanelTop,
     illustration: (
-      <div className="rounded-xl border border-border bg-card p-5">
+      <div className="border border-border bg-card p-5">
         <p className="mb-2 text-xs font-medium text-muted-foreground">
           Paste this into your app:
         </p>
-        <div className="group relative rounded-lg bg-muted/50 p-3 font-mono text-xs leading-relaxed text-foreground/80">
+        <div className="group relative bg-muted/50 p-3 font-mono text-xs leading-relaxed text-foreground/80">
           <code>
             {`<script src="https://cdn.changeloger.dev/widget.js"
   data-workspace="acme"
@@ -526,7 +526,7 @@ const deepDives = [
 </script>`}
           </code>
           <button
-            className="absolute top-2 right-2 rounded-md p-1 opacity-0 transition-opacity group-hover:opacity-100"
+            className="absolute top-2 right-2 p-1 opacity-0 transition-opacity group-hover:opacity-100"
             aria-label="Copy embed code"
           >
             <Copy className="size-3.5 text-muted-foreground" />
@@ -542,7 +542,7 @@ const deepDives = [
     badges: ["View tracking", "Reaction metrics", "Export CSV"],
     icon: BarChart3,
     illustration: (
-      <div className="rounded-xl border border-border bg-card p-5">
+      <div className="border border-border bg-card p-5">
         <div className="mb-3 flex items-center justify-between text-sm">
           <span className="font-medium">Engagement &mdash; last 30 days</span>
           <Badge variant="secondary" className="rounded-full text-xs">
@@ -751,7 +751,7 @@ function TestimonialsSection() {
         >
           {testimonials.map((t) => (
             <motion.div key={t.name} variants={fadeUpItem}>
-              <Card className="h-full rounded-xl">
+              <Card className="h-full">
                 <CardContent className="flex h-full flex-col justify-between gap-6 pt-6">
                   <div className="flex gap-1">
                     {Array.from({ length: 5 }).map((_, i) => (
@@ -970,11 +970,11 @@ function BottomCTASection() {
             <Button
               asChild
               size="lg"
-              className="gradient-primary rounded-lg px-6 text-sm font-semibold text-white"
+              className="gradient-primary px-6 text-sm font-semibold text-white"
             >
               <Link href="/signup">Get Started Free</Link>
             </Button>
-            <Button asChild variant="outline" size="lg" className="rounded-lg px-6 text-sm">
+            <Button asChild variant="outline" size="lg" className=" px-6 text-sm">
               <Link href="/demo">Book a Demo</Link>
             </Button>
           </motion.div>

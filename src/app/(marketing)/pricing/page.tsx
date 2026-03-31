@@ -504,7 +504,7 @@ export default function PricingPage() {
               <div className="grid w-full max-w-lg grid-cols-1 gap-4 sm:grid-cols-2">
                 {enterpriseFeatures.map((ef) => (
                   <div key={ef.title} className="flex gap-3">
-                    <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary/10">
+                    <div className="flex size-9 shrink-0 items-center justify-center bg-primary/10">
                       <ef.icon className="size-4 text-primary" />
                     </div>
                     <div>
