@@ -1,7 +1,24 @@
-import { GitBranch } from "lucide-react"
-import { Button } from "@/components/ui/button"
+"use client"
+
+import { useQuery } from "@tanstack/react-query"
+import { apiClient } from "@/lib/api/client"
+import { useWorkspaceStore } from "@/stores/workspace-store"
+import { GitHubConnectButton } from "@/components/dashboard/github-connect-button"
+import { RepositoryList } from "@/components/dashboard/repository-list"
 
 export default function RepositoriesPage() {
+  const workspaceId = useWorkspaceStore((s) => s.currentWorkspaceId)
+
+  const { data: repositories = [], isLoading } = useQuery({
+    queryKey: ["repositories", workspaceId],
+    queryFn: async () => {
+      if (!workspaceId) return []
+      const { data } = await apiClient.get(`/api/repositories?workspaceId=${workspaceId}`)
+      return data
+    },
+    enabled: !!workspaceId,
+  })
+
   return (
     <div className="mx-auto max-w-5xl">
       <div className="mb-8 flex items-center justify-between">
@@ -11,24 +28,16 @@ export default function RepositoriesPage() {
             Manage your connected GitHub repositories
           </p>
         </div>
-        <Button>
-          <GitBranch className="mr-2 h-4 w-4" />
-          Connect Repository
-        </Button>
+        <GitHubConnectButton />
       </div>
 
-      <div className="flex flex-col items-center justify-center rounded-lg border border-dashed py-16">
-        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-muted">
-          <GitBranch className="h-6 w-6 text-muted-foreground" />
+      {isLoading ? (
+        <div className="flex items-center justify-center py-16 text-muted-foreground">
+          Loading repositories...
         </div>
-        <h3 className="mt-4 text-lg font-semibold">No repositories connected yet</h3>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Install the GitHub App to connect your first repository.
-        </p>
-        <Button variant="outline" className="mt-6">
-          Connect GitHub
-        </Button>
-      </div>
+      ) : (
+        <RepositoryList repositories={repositories} />
+      )}
     </div>
   )
 }
