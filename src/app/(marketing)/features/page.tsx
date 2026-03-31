@@ -452,7 +452,7 @@ export default function FeaturesPage() {
   }, [activeId])
 
   return (
-    <div className="relative overflow-hidden">
+    <div className="relative">
       {/* Background */}
       <div
         aria-hidden

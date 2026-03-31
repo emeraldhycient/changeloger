@@ -143,7 +143,7 @@ function HeroSection() {
                 <span className="size-3 rounded-full bg-red-400/80" />
                 <span className="size-3 rounded-full bg-yellow-400/80" />
                 <span className="size-3 rounded-full bg-green-400/80" />
-                <span className="ml-4 flex-1 rounded-md bg-background/60 px-3 py-1 text-xs text-muted-foreground">
+                <span className="ml-4 flex-1 bg-background/60 px-3 py-1 text-xs text-muted-foreground">
                   app.changeloger.dev/workspace/acme/changelog
                 </span>
               </div>
@@ -186,7 +186,7 @@ function HeroSection() {
                   ].map((entry) => (
                     <li key={entry.title} className="flex items-start gap-3">
                       <span
-                        className={`mt-0.5 inline-flex shrink-0 items-center rounded-md px-2 py-0.5 text-xs font-medium ${entry.color}`}
+                        className={`mt-0.5 inline-flex shrink-0 items-center px-2 py-0.5 text-xs font-medium ${entry.color}`}
                       >
                         {entry.cat}
                       </span>
@@ -409,7 +409,7 @@ function ChangelogPreviewSection() {
                     <li key={e.title} className="flex flex-col gap-1.5">
                       <div className="flex items-center gap-3">
                         <span
-                          className={`inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium ${e.color}`}
+                          className={`inline-flex items-center px-2 py-0.5 text-xs font-medium ${e.color}`}
                         >
                           {e.cat}
                         </span>
@@ -590,7 +590,7 @@ function FeatureDeepDivesSection() {
             >
               {/* Text */}
               <div className="flex-1 space-y-5">
-                <div className="flex size-12 items-center justify-center rounded-lg bg-[#6C63FF]/10">
+                <div className="flex size-12 items-center justify-center bg-[#6C63FF]/10">
                   <item.icon className="size-6 text-[#6C63FF]" />
                 </div>
                 <h3 className="text-2xl font-bold tracking-tight sm:text-3xl">
@@ -663,7 +663,7 @@ function IntegrationsSection() {
             { name: "Bitbucket", soon: true },
           ].map((p) => (
             <motion.div key={p.name} variants={fadeUpItem}>
-              <Card className="rounded-xl py-6 text-center transition-transform duration-300 hover:-translate-y-1">
+              <Card className="py-6 text-center transition-transform duration-300 hover:-translate-y-1">
                 <CardContent className="flex flex-col items-center gap-3">
                   <div className="flex size-14 items-center justify-center rounded-full bg-muted">
                     <Globe className="size-7 text-foreground" />
@@ -862,7 +862,7 @@ function PricingSection() {
           {plans.map((plan) => (
             <motion.div key={plan.name} variants={fadeUpItem}>
               <Card
-                className={`relative h-full rounded-xl ${
+                className={`relative h-full ${
                   plan.popular
                     ? "ring-2 ring-[#6C63FF] shadow-lg shadow-[#6C63FF]/10"
                     : ""
@@ -897,7 +897,7 @@ function PricingSection() {
                   <Button
                     asChild
                     variant={plan.popular ? "default" : "outline"}
-                    className={`w-full rounded-lg ${
+                    className={`w-full ${
                       plan.popular
                         ? "gradient-primary text-white"
                         : ""

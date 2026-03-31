@@ -129,7 +129,7 @@ export default function ContactPage() {
                       required
                       rows={5}
                       placeholder="Tell us how we can help..."
-                      className="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                      className="flex w-full border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                     />
                   </div>
 
@@ -146,7 +146,7 @@ export default function ContactPage() {
           <div className="space-y-8 lg:pl-8">
             {/* Email */}
             <div className="flex items-start gap-4">
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-violet-500/10">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center bg-violet-500/10">
                 <Mail className="h-5 w-5 text-violet-400" />
               </div>
               <div>
@@ -165,7 +165,7 @@ export default function ContactPage() {
 
             {/* Response time */}
             <div className="flex items-start gap-4">
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-violet-500/10">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center bg-violet-500/10">
                 <Clock className="h-5 w-5 text-violet-400" />
               </div>
               <div>
@@ -183,7 +183,7 @@ export default function ContactPage() {
             {/* Book a demo */}
             <Card className="border-violet-500/30">
               <CardHeader>
-                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-violet-500/10 mb-2">
+                <div className="flex h-10 w-10 items-center justify-center bg-violet-500/10 mb-2">
                   <CalendarDays className="h-5 w-5 text-violet-400" />
                 </div>
                 <CardTitle>Book a demo</CardTitle>
