@@ -1,4 +1,7 @@
-import type { Metadata } from "next"
+"use client"
+
+import { Suspense } from "react"
+import { useSearchParams } from "next/navigation"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import {
@@ -10,14 +13,15 @@ import {
 } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
 
-export const metadata: Metadata = {
-  title: "Sign In - Changeloger",
-  description: "Sign in to your Changeloger account.",
+const ERROR_MESSAGES: Record<string, string> = {
+  missing_code: "Authentication was cancelled or failed. Please try again.",
+  invalid_state: "Security validation failed. Please try again.",
+  invalid_provider: "Unsupported authentication provider.",
+  auth_failed: "Authentication failed. Please try again.",
+  google_not_configured: "Google sign-in is not configured yet.",
+  github_not_configured: "GitHub sign-in is not configured yet.",
+  access_denied: "You denied access. Please try again if this was a mistake.",
 }
-
-// ---------------------------------------------------------------------------
-// Brand icons (inline SVG to avoid extra deps)
-// ---------------------------------------------------------------------------
 
 function GoogleIcon({ className }: { className?: string }) {
   return (
@@ -38,11 +42,19 @@ function GitHubIcon({ className }: { className?: string }) {
   )
 }
 
-// ---------------------------------------------------------------------------
-// Page
-// ---------------------------------------------------------------------------
+function SignInContent() {
+  const searchParams = useSearchParams()
+  const error = searchParams.get("error")
+  const redirect = searchParams.get("redirect")
 
-export default function SignInPage() {
+  // Append redirect param to OAuth URLs so we can redirect back after auth
+  const googleUrl = redirect
+    ? `/api/auth/google?redirect=${encodeURIComponent(redirect)}`
+    : "/api/auth/google"
+  const githubUrl = redirect
+    ? `/api/auth/github?redirect=${encodeURIComponent(redirect)}`
+    : "/api/auth/github"
+
   return (
     <section className="flex min-h-[calc(100vh-8rem)] items-center justify-center py-16">
       <div className="mx-auto w-full max-w-md px-6 sm:px-8">
@@ -55,31 +67,34 @@ export default function SignInPage() {
           </CardHeader>
 
           <CardContent className="space-y-4">
-            {/* Google */}
+            {error && (
+              <div className="border border-destructive/50 bg-destructive/10 p-3 text-center text-sm text-destructive">
+                {ERROR_MESSAGES[error] || "An error occurred. Please try again."}
+              </div>
+            )}
+
             <Button
               variant="outline"
               className="w-full justify-center gap-3"
               asChild
             >
-              <a href="/api/auth/google">
+              <a href={googleUrl}>
                 <GoogleIcon className="h-5 w-5" />
                 Continue with Google
               </a>
             </Button>
 
-            {/* GitHub */}
             <Button
               variant="outline"
               className="w-full justify-center gap-3"
               asChild
             >
-              <a href="/api/auth/github">
+              <a href={githubUrl}>
                 <GitHubIcon className="h-5 w-5" />
                 Continue with GitHub
               </a>
             </Button>
 
-            {/* Separator */}
             <div className="relative py-2">
               <Separator />
               <span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 bg-card px-3 text-xs text-muted-foreground">
@@ -87,12 +102,11 @@ export default function SignInPage() {
               </span>
             </div>
 
-            {/* Sign up link */}
             <p className="text-center text-sm text-muted-foreground">
               Don&apos;t have an account?{" "}
               <Link
                 href="/sign-up"
-                className="font-medium text-violet-400 hover:underline"
+                className="font-medium text-primary hover:underline"
               >
                 Create one
               </Link>
@@ -101,5 +115,13 @@ export default function SignInPage() {
         </Card>
       </div>
     </section>
+  )
+}
+
+export default function SignInPage() {
+  return (
+    <Suspense fallback={<div className="flex min-h-[calc(100vh-8rem)] items-center justify-center">Loading...</div>}>
+      <SignInContent />
+    </Suspense>
   )
 }
