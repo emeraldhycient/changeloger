@@ -6,6 +6,9 @@ interface Workspace {
   name: string
   slug: string
   plan: string
+  polarCustomerId: string | null
+  polarSubscriptionId: string | null
+  trialEndsAt: string | null
   _count: { members: number; repositories: number }
 }
 
