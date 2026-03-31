@@ -1,0 +1,381 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ─── Enums ──────────────────────────────────────────────────────────────────
+
+enum OAuthProvider {
+  google
+  github
+}
+
+enum WorkspaceRole {
+  owner
+  admin
+  editor
+  viewer
+}
+
+enum WorkspacePlan {
+  free
+  pro
+  team
+  enterprise
+}
+
+enum ReleaseStatus {
+  draft
+  published
+  archived
+}
+
+enum WidgetType {
+  page
+  modal
+  badge
+}
+
+enum ChangeSource {
+  commit
+  diff
+  version
+}
+
+enum EventType {
+  page_view
+  entry_click
+  scroll_depth
+  session_end
+}
+
+enum ImpactLevel {
+  critical
+  high
+  medium
+  low
+  negligible
+}
+
+enum ChangeCategory {
+  added
+  fixed
+  changed
+  removed
+  deprecated
+  security
+  performance
+  documentation
+  maintenance
+  breaking
+}
+
+// ─── Users & Authentication ─────────────────────────────────────────────────
+
+model User {
+  id        String   @id @default(uuid()) @db.Uuid
+  email     String   @unique
+  name      String?
+  avatarUrl String?  @map("avatar_url")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  oauthAccounts    OAuthAccount[]
+  sessions         Session[]
+  ownedWorkspaces  Workspace[]        @relation("WorkspaceOwner")
+  memberships      WorkspaceMember[]
+  sentInvitations  Invitation[]       @relation("InvitedBy")
+  publishedReleases Release[]         @relation("PublishedBy")
+  releaseRevisions ReleaseRevision[]  @relation("CreatedBy")
+
+  @@map("users")
+}
+
+model OAuthAccount {
+  id             String        @id @default(uuid()) @db.Uuid
+  userId         String        @map("user_id") @db.Uuid
+  provider       OAuthProvider
+  providerUserId String        @map("provider_user_id")
+  accessToken    String?       @map("access_token")
+  refreshToken   String?       @map("refresh_token")
+  tokenExpiresAt DateTime?     @map("token_expires_at")
+  createdAt      DateTime      @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerUserId])
+  @@index([userId])
+  @@map("oauth_accounts")
+}
+
+model Session {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  tokenHash String   @map("token_hash")
+  expiresAt DateTime @map("expires_at")
+  ipAddress String?  @map("ip_address")
+  userAgent String?  @map("user_agent")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([tokenHash])
+  @@map("sessions")
+}
+
+// ─── Workspaces & Teams ─────────────────────────────────────────────────────
+
+model Workspace {
+  id                  String        @id @default(uuid()) @db.Uuid
+  name                String
+  slug                String        @unique
+  ownerId             String        @map("owner_id") @db.Uuid
+  plan                WorkspacePlan @default(free)
+  polarCustomerId     String?       @map("polar_customer_id")
+  polarSubscriptionId String?       @map("polar_subscription_id")
+  trialEndsAt         DateTime?     @map("trial_ends_at")
+  aiGenerationsUsed   Int           @default(0) @map("ai_generations_used")
+  billingCycleStart   DateTime?     @map("billing_cycle_start")
+  createdAt           DateTime      @default(now()) @map("created_at")
+  updatedAt           DateTime      @updatedAt @map("updated_at")
+
+  owner               User                @relation("WorkspaceOwner", fields: [ownerId], references: [id])
+  members             WorkspaceMember[]
+  invitations         Invitation[]
+  githubInstallations GithubInstallation[]
+  repositories        Repository[]
+
+  @@index([ownerId])
+  @@map("workspaces")
+}
+
+model WorkspaceMember {
+  id          String        @id @default(uuid()) @db.Uuid
+  workspaceId String        @map("workspace_id") @db.Uuid
+  userId      String        @map("user_id") @db.Uuid
+  role        WorkspaceRole @default(viewer)
+  invitedBy   String?       @map("invited_by") @db.Uuid
+  joinedAt    DateTime      @default(now()) @map("joined_at")
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, userId])
+  @@index([userId])
+  @@map("workspace_members")
+}
+
+model Invitation {
+  id          String        @id @default(uuid()) @db.Uuid
+  workspaceId String        @map("workspace_id") @db.Uuid
+  email       String
+  role        WorkspaceRole @default(viewer)
+  invitedById String        @map("invited_by_id") @db.Uuid
+  token       String        @unique @default(uuid())
+  expiresAt   DateTime      @map("expires_at")
+  acceptedAt  DateTime?     @map("accepted_at")
+  createdAt   DateTime      @default(now()) @map("created_at")
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  invitedBy User      @relation("InvitedBy", fields: [invitedById], references: [id])
+
+  @@index([workspaceId])
+  @@index([email])
+  @@index([token])
+  @@map("invitations")
+}
+
+// ─── GitHub Integration ─────────────────────────────────────────────────────
+
+model GithubInstallation {
+  id              String   @id @default(uuid()) @db.Uuid
+  workspaceId     String   @map("workspace_id") @db.Uuid
+  installationId  Int      @unique @map("installation_id")
+  accountLogin    String   @map("account_login")
+  accountType     String   @map("account_type") // "User" | "Organization"
+  accessToken     String?  @map("access_token")
+  tokenExpiresAt  DateTime? @map("token_expires_at")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  workspace    Workspace    @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  repositories Repository[]
+
+  @@index([workspaceId])
+  @@map("github_installations")
+}
+
+model Repository {
+  id                    String   @id @default(uuid()) @db.Uuid
+  workspaceId           String   @map("workspace_id") @db.Uuid
+  githubInstallationId  String   @map("github_installation_id") @db.Uuid
+  githubRepoId          Int      @map("github_repo_id")
+  name                  String
+  fullName              String   @map("full_name")
+  defaultBranch         String   @default("main") @map("default_branch")
+  language              String?
+  isActive              Boolean  @default(true) @map("is_active")
+  config                Json     @default("{}") // branch filters, ignore paths, AI settings
+  createdAt             DateTime @default(now()) @map("created_at")
+  updatedAt             DateTime @updatedAt @map("updated_at")
+
+  workspace           Workspace          @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  githubInstallation  GithubInstallation @relation(fields: [githubInstallationId], references: [id], onDelete: Cascade)
+  changeRecords       ChangeRecord[]
+  releases            Release[]
+  widgets             Widget[]
+
+  @@unique([workspaceId, githubRepoId])
+  @@index([workspaceId])
+  @@index([githubInstallationId])
+  @@map("repositories")
+}
+
+// ─── Changelog Data ─────────────────────────────────────────────────────────
+
+model ChangeRecord {
+  id           String         @id @default(uuid()) @db.Uuid
+  repositoryId String         @map("repository_id") @db.Uuid
+  source       ChangeSource
+  commitSha    String?        @map("commit_sha")
+  type         String?        // feat, fix, chore, etc.
+  scope        String?
+  subject      String
+  body         String?
+  filesChanged Json?          @map("files_changed") @db.JsonB
+  breaking     Boolean        @default(false)
+  confidence   Float          @default(1.0)
+  impact       ImpactLevel    @default(medium)
+  authors      Json           @default("[]") @db.JsonB
+  timestamp    DateTime
+  metadata     Json           @default("{}") @db.JsonB
+  createdAt    DateTime       @default(now()) @map("created_at")
+
+  repository Repository @relation(fields: [repositoryId], references: [id], onDelete: Cascade)
+
+  @@index([repositoryId])
+  @@index([commitSha])
+  @@index([timestamp])
+  @@map("change_records")
+}
+
+model ChangelogEntry {
+  id              String         @id @default(uuid()) @db.Uuid
+  releaseId       String         @map("release_id") @db.Uuid
+  category        ChangeCategory
+  title           String
+  description     String?
+  impact          ImpactLevel    @default(medium)
+  breaking        Boolean        @default(false)
+  sourceRecordIds String[]       @map("source_record_ids") @db.Uuid
+  authors         Json           @default("[]") @db.JsonB
+  position        Int            @default(0)
+  reviewed        Boolean        @default(false)
+  createdAt       DateTime       @default(now()) @map("created_at")
+  updatedAt       DateTime       @updatedAt @map("updated_at")
+
+  release Release @relation(fields: [releaseId], references: [id], onDelete: Cascade)
+
+  @@index([releaseId])
+  @@map("changelog_entries")
+}
+
+model Release {
+  id           String        @id @default(uuid()) @db.Uuid
+  repositoryId String        @map("repository_id") @db.Uuid
+  version      String
+  date         DateTime      @default(now())
+  tag          String?
+  status       ReleaseStatus @default(draft)
+  summary      String?
+  commitRange  Json?         @map("commit_range") @db.JsonB // { from: sha, to: sha }
+  publishedAt  DateTime?     @map("published_at")
+  publishedBy  String?       @map("published_by") @db.Uuid
+  createdAt    DateTime      @default(now()) @map("created_at")
+  updatedAt    DateTime      @updatedAt @map("updated_at")
+
+  repository Repository       @relation(fields: [repositoryId], references: [id], onDelete: Cascade)
+  publisher  User?             @relation("PublishedBy", fields: [publishedBy], references: [id])
+  entries    ChangelogEntry[]
+  revisions  ReleaseRevision[]
+
+  @@unique([repositoryId, version])
+  @@index([repositoryId])
+  @@index([status])
+  @@map("releases")
+}
+
+model ReleaseRevision {
+  id        String   @id @default(uuid()) @db.Uuid
+  releaseId String   @map("release_id") @db.Uuid
+  snapshot  Json     @db.JsonB // full state of all entries at this revision
+  createdBy String   @map("created_by") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at")
+
+  release Release @relation(fields: [releaseId], references: [id], onDelete: Cascade)
+  creator User    @relation("CreatedBy", fields: [createdBy], references: [id])
+
+  @@index([releaseId])
+  @@map("release_revisions")
+}
+
+// ─── Widgets & Analytics ────────────────────────────────────────────────────
+
+model Widget {
+  id           String     @id @default(uuid()) @db.Uuid
+  repositoryId String     @map("repository_id") @db.Uuid
+  type         WidgetType
+  embedToken   String     @unique @default(uuid()) @map("embed_token")
+  config       Json       @default("{}") @db.JsonB // colors, fonts, logo, etc.
+  domains      String[]   @default([]) // whitelisted domains
+  createdAt    DateTime   @default(now()) @map("created_at")
+  updatedAt    DateTime   @updatedAt @map("updated_at")
+
+  repository     Repository       @relation(fields: [repositoryId], references: [id], onDelete: Cascade)
+  analyticsEvents AnalyticsEvent[]
+  analyticsDays   AnalyticsDaily[]
+
+  @@index([repositoryId])
+  @@index([embedToken])
+  @@map("widgets")
+}
+
+model AnalyticsEvent {
+  id          String    @id @default(uuid()) @db.Uuid
+  widgetId    String    @map("widget_id") @db.Uuid
+  eventType   EventType @map("event_type")
+  entryId     String?   @map("entry_id") @db.Uuid
+  visitorHash String    @map("visitor_hash")
+  referrer    String?
+  metadata    Json      @default("{}") @db.JsonB
+  timestamp   DateTime  @default(now())
+
+  widget Widget @relation(fields: [widgetId], references: [id], onDelete: Cascade)
+
+  @@index([widgetId])
+  @@index([timestamp])
+  @@index([eventType])
+  @@map("analytics_events")
+}
+
+model AnalyticsDaily {
+  id              String   @id @default(uuid()) @db.Uuid
+  widgetId        String   @map("widget_id") @db.Uuid
+  date            DateTime @db.Date
+  pageViews       Int      @default(0) @map("page_views")
+  uniqueVisitors  Int      @default(0) @map("unique_visitors")
+  entryClicks     Json     @default("{}") @map("entry_clicks") @db.JsonB
+  avgReadDepth    Float?   @map("avg_read_depth")
+  avgTimeOnPage   Float?   @map("avg_time_on_page")
+
+  widget Widget @relation(fields: [widgetId], references: [id], onDelete: Cascade)
+
+  @@unique([widgetId, date])
+  @@index([widgetId])
+  @@index([date])
+  @@map("analytics_daily")
+}
