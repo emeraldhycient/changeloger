@@ -42,11 +42,11 @@ const categories: DocCategory[] = [
     description:
       "Create your account, connect your first repository, and publish a changelog in under five minutes.",
     icon: Rocket,
-    href: "#",
+    href: "/docs/getting-started",
     links: [
-      { label: "Quick Start Guide", href: "#" },
-      { label: "Core Concepts", href: "#" },
-      { label: "Your First Changelog", href: "#" },
+      { label: "Quick Start Guide", href: "/docs/getting-started#quick-start-guide" },
+      { label: "Core Concepts", href: "/docs/getting-started#core-concepts" },
+      { label: "Your First Changelog", href: "/docs/getting-started#your-first-changelog" },
     ],
   },
   {
@@ -54,11 +54,11 @@ const categories: DocCategory[] = [
     description:
       "Install the Changeloger GitHub App, configure repository permissions, and manage webhook events.",
     icon: GitBranch,
-    href: "#",
+    href: "/docs/github-app",
     links: [
-      { label: "Installation", href: "#" },
-      { label: "Permissions Explained", href: "#" },
-      { label: "Webhook Events", href: "#" },
+      { label: "Installation", href: "/docs/github-app#installation" },
+      { label: "Permissions Explained", href: "/docs/github-app#permissions-explained" },
+      { label: "Webhook Events", href: "/docs/github-app#webhook-events" },
     ],
   },
   {
@@ -66,11 +66,11 @@ const categories: DocCategory[] = [
     description:
       "Understand how Changeloger detects and classifies changes from commits, PRs, and release tags.",
     icon: Cpu,
-    href: "#",
+    href: "/docs/detection-engines",
     links: [
-      { label: "Conventional Commits", href: "#" },
-      { label: "AI Classification", href: "#" },
-      { label: "Custom Rules", href: "#" },
+      { label: "Conventional Commits", href: "/docs/detection-engines#conventional-commits" },
+      { label: "AI Classification", href: "/docs/detection-engines#ai-classification" },
+      { label: "Custom Rules", href: "/docs/detection-engines#custom-rules" },
     ],
   },
   {
@@ -78,11 +78,11 @@ const categories: DocCategory[] = [
     description:
       "Use the visual editor to curate, rewrite, and organise changelog entries before publishing.",
     icon: PenLine,
-    href: "#",
+    href: "/docs/changelog-editor",
     links: [
-      { label: "Editor Overview", href: "#" },
-      { label: "Drag & Drop", href: "#" },
-      { label: "Markdown Shortcuts", href: "#" },
+      { label: "Editor Overview", href: "/docs/changelog-editor#editor-overview" },
+      { label: "Drag & Drop", href: "/docs/changelog-editor#drag-and-drop" },
+      { label: "Markdown Shortcuts", href: "/docs/changelog-editor#markdown-shortcuts" },
     ],
   },
   {
@@ -90,11 +90,11 @@ const categories: DocCategory[] = [
     description:
       "Add a live changelog widget to your site with a single script tag. Fully themeable.",
     icon: Code2,
-    href: "#",
+    href: "/docs/embeddable-widgets",
     links: [
-      { label: "Quick Embed", href: "#" },
-      { label: "Theming", href: "#" },
-      { label: "Framework Guides", href: "#" },
+      { label: "Quick Embed", href: "/docs/embeddable-widgets#quick-embed" },
+      { label: "Theming", href: "/docs/embeddable-widgets#theming" },
+      { label: "Framework Guides", href: "/docs/embeddable-widgets#framework-guides" },
     ],
   },
   {
@@ -102,11 +102,11 @@ const categories: DocCategory[] = [
     description:
       "Programmatic access to changelogs, releases, and workspace settings via our REST API.",
     icon: BookOpen,
-    href: "#",
+    href: "/docs/api-reference",
     links: [
-      { label: "Authentication", href: "#" },
-      { label: "Endpoints", href: "#" },
-      { label: "Rate Limits", href: "#" },
+      { label: "Authentication", href: "/docs/api-reference#authentication" },
+      { label: "Endpoints", href: "/docs/api-reference#endpoints" },
+      { label: "Rate Limits", href: "/docs/api-reference#rate-limits" },
     ],
   },
   {
@@ -114,11 +114,11 @@ const categories: DocCategory[] = [
     description:
       "Invite collaborators, assign roles, and manage workspace-level permissions.",
     icon: Users,
-    href: "#",
+    href: "/docs/team-management",
     links: [
-      { label: "Inviting Members", href: "#" },
-      { label: "Roles & Permissions", href: "#" },
-      { label: "SSO Configuration", href: "#" },
+      { label: "Inviting Members", href: "/docs/team-management#inviting-members" },
+      { label: "Roles & Permissions", href: "/docs/team-management#roles-and-permissions" },
+      { label: "SSO Configuration", href: "/docs/team-management#sso-configuration" },
     ],
   },
   {
@@ -126,11 +126,11 @@ const categories: DocCategory[] = [
     description:
       "Manage your subscription, view invoices, and understand what each plan includes.",
     icon: CreditCard,
-    href: "#",
+    href: "/docs/billing",
     links: [
-      { label: "Plan Comparison", href: "#" },
-      { label: "Upgrading", href: "#" },
-      { label: "Invoices & Receipts", href: "#" },
+      { label: "Plan Comparison", href: "/docs/billing#plan-comparison" },
+      { label: "Upgrading", href: "/docs/billing#upgrading" },
+      { label: "Invoices & Receipts", href: "/docs/billing#invoices-and-receipts" },
     ],
   },
 ]
@@ -189,7 +189,7 @@ export default function DocsPage() {
                 className="group flex flex-col transition-colors hover:border-violet-500/50"
               >
                 <CardHeader>
-                  <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-lg bg-violet-500/10">
+                  <div className="mb-3 flex h-10 w-10 items-center justify-center bg-violet-500/10">
                     <Icon className="h-5 w-5 text-violet-400" />
                   </div>
                   <CardTitle className="text-lg">{cat.title}</CardTitle>

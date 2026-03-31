@@ -1,0 +1,1088 @@
+openapi: 3.1.0
+info:
+  title: Changeloger API
+  description: |
+    RESTful API for Changeloger - automated changelog generation platform.
+    All endpoints return JSON. Authentication is via JWT in httpOnly cookies
+    (set automatically by the OAuth flow).
+  version: 1.0.0
+  contact:
+    name: Changeloger
+    url: https://changeloger.com
+  license:
+    name: MIT
+
+servers:
+  - url: http://localhost:3000/api
+    description: Development
+  - url: https://app.changeloger.com/api
+    description: Production
+
+tags:
+  - name: Auth
+    description: Authentication and session management
+  - name: Workspaces
+    description: Workspace and team management
+  - name: Repositories
+    description: Connected GitHub repositories
+  - name: Releases
+    description: Changelog releases and drafts
+  - name: Entries
+    description: Individual changelog entries within releases
+  - name: Widgets
+    description: Embeddable changelog widgets
+  - name: Billing
+    description: Subscription billing via Polar
+  - name: Webhooks
+    description: Inbound webhook receivers
+
+components:
+  securitySchemes:
+    cookieAuth:
+      type: apiKey
+      in: cookie
+      name: changeloger_token
+    embedToken:
+      type: apiKey
+      in: path
+      name: embedToken
+    webhookSignature:
+      type: apiKey
+      in: header
+      name: X-Hub-Signature-256
+
+  schemas:
+    Error:
+      type: object
+      required: [error, code]
+      properties:
+        error:
+          type: string
+          example: "Validation failed"
+        code:
+          type: string
+          example: "VALIDATION_ERROR"
+        details:
+          type: object
+
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        email:
+          type: string
+          format: email
+        name:
+          type: string
+          nullable: true
+        avatarUrl:
+          type: string
+          nullable: true
+        providers:
+          type: array
+          items:
+            type: string
+            enum: [google, github]
+
+    Workspace:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        slug:
+          type: string
+        plan:
+          type: string
+          enum: [free, pro, team, enterprise]
+        _count:
+          type: object
+          properties:
+            members:
+              type: integer
+            repositories:
+              type: integer
+
+    Repository:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        fullName:
+          type: string
+        language:
+          type: string
+          nullable: true
+        isActive:
+          type: boolean
+        defaultBranch:
+          type: string
+        config:
+          type: object
+        githubInstallation:
+          type: object
+          properties:
+            accountLogin:
+              type: string
+        _count:
+          type: object
+          properties:
+            releases:
+              type: integer
+            changeRecords:
+              type: integer
+
+    Release:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        repositoryId:
+          type: string
+          format: uuid
+        version:
+          type: string
+        status:
+          type: string
+          enum: [draft, published, archived]
+        summary:
+          type: string
+          nullable: true
+        publishedAt:
+          type: string
+          format: date-time
+          nullable: true
+        entries:
+          type: array
+          items:
+            $ref: '#/components/schemas/ChangelogEntry'
+
+    ChangelogEntry:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        category:
+          type: string
+          enum: [added, fixed, changed, removed, deprecated, security, performance, documentation, maintenance, breaking]
+        title:
+          type: string
+        description:
+          type: string
+          nullable: true
+        impact:
+          type: string
+          enum: [critical, high, medium, low, negligible]
+        breaking:
+          type: boolean
+        position:
+          type: integer
+        reviewed:
+          type: boolean
+        authors:
+          type: array
+          items:
+            type: object
+
+    Widget:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        repositoryId:
+          type: string
+          format: uuid
+        type:
+          type: string
+          enum: [page, modal, badge]
+        embedToken:
+          type: string
+          format: uuid
+        config:
+          type: object
+        domains:
+          type: array
+          items:
+            type: string
+
+    WorkspaceMember:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        role:
+          type: string
+          enum: [owner, admin, editor, viewer]
+        user:
+          $ref: '#/components/schemas/User'
+
+    PublishResult:
+      type: object
+      properties:
+        release:
+          $ref: '#/components/schemas/Release'
+        markdown:
+          type: string
+        html:
+          type: string
+        json:
+          type: object
+
+paths:
+  # ── Auth ──────────────────────────────────────────────────
+  /auth/google:
+    get:
+      tags: [Auth]
+      summary: Initiate Google OAuth
+      description: Redirects to Google's authorization page
+      responses:
+        '302':
+          description: Redirect to Google OAuth
+
+  /auth/github:
+    get:
+      tags: [Auth]
+      summary: Initiate GitHub OAuth
+      description: Redirects to GitHub's authorization page
+      responses:
+        '302':
+          description: Redirect to GitHub OAuth
+
+  /auth/callback/{provider}:
+    get:
+      tags: [Auth]
+      summary: OAuth callback handler
+      parameters:
+        - name: provider
+          in: path
+          required: true
+          schema:
+            type: string
+            enum: [google, github]
+        - name: code
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '302':
+          description: Redirect to dashboard on success
+
+  /auth/logout:
+    post:
+      tags: [Auth]
+      summary: Log out
+      security:
+        - cookieAuth: []
+      responses:
+        '200':
+          description: Session invalidated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+
+  /auth/me:
+    get:
+      tags: [Auth]
+      summary: Get current user
+      security:
+        - cookieAuth: []
+      responses:
+        '200':
+          description: User profile
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '401':
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  # ── Workspaces ────────────────────────────────────────────
+  /workspaces:
+    get:
+      tags: [Workspaces]
+      summary: List workspaces
+      security:
+        - cookieAuth: []
+      responses:
+        '200':
+          description: List of workspaces
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Workspace'
+    post:
+      tags: [Workspaces]
+      summary: Create workspace
+      security:
+        - cookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, slug]
+              properties:
+                name:
+                  type: string
+                  minLength: 1
+                  maxLength: 100
+                slug:
+                  type: string
+                  pattern: '^[a-z0-9-]+$'
+      responses:
+        '201':
+          description: Workspace created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Workspace'
+
+  /workspaces/{id}/members:
+    get:
+      tags: [Workspaces]
+      summary: List workspace members
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Member list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/WorkspaceMember'
+
+  /workspaces/{id}/invitations:
+    get:
+      tags: [Workspaces]
+      summary: List pending invitations
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Invitation list
+    post:
+      tags: [Workspaces]
+      summary: Send invitation
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, role]
+              properties:
+                email:
+                  type: string
+                  format: email
+                role:
+                  type: string
+                  enum: [viewer, editor, admin]
+      responses:
+        '201':
+          description: Invitation sent
+
+  # ── Repositories ──────────────────────────────────────────
+  /repositories:
+    get:
+      tags: [Repositories]
+      summary: List repositories
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: workspaceId
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Repository list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Repository'
+    post:
+      tags: [Repositories]
+      summary: Connect a repository
+      security:
+        - cookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [workspaceId, githubInstallationId, githubRepoId, name, fullName]
+              properties:
+                workspaceId:
+                  type: string
+                  format: uuid
+                githubInstallationId:
+                  type: string
+                  format: uuid
+                githubRepoId:
+                  type: integer
+                name:
+                  type: string
+                fullName:
+                  type: string
+                defaultBranch:
+                  type: string
+                  default: main
+                language:
+                  type: string
+                  nullable: true
+      responses:
+        '201':
+          description: Repository connected
+
+  /repositories/{id}:
+    get:
+      tags: [Repositories]
+      summary: Get repository details
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Repository details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Repository'
+    patch:
+      tags: [Repositories]
+      summary: Update repository config
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                config:
+                  type: object
+                isActive:
+                  type: boolean
+      responses:
+        '200':
+          description: Updated repository
+    delete:
+      tags: [Repositories]
+      summary: Disconnect repository
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Repository disconnected
+
+  # ── Releases ──────────────────────────────────────────────
+  /repositories/{id}/releases:
+    get:
+      tags: [Releases]
+      summary: List releases
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [draft, published, archived]
+      responses:
+        '200':
+          description: Release list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Release'
+    post:
+      tags: [Releases]
+      summary: Create draft release
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [version]
+              properties:
+                version:
+                  type: string
+                summary:
+                  type: string
+      responses:
+        '201':
+          description: Draft created
+
+  /repositories/{id}/releases/{version}:
+    get:
+      tags: [Releases]
+      summary: Get release with entries
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: version
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Release with entries
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Release'
+    put:
+      tags: [Releases]
+      summary: Update release metadata
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: version
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                summary:
+                  type: string
+                newVersion:
+                  type: string
+      responses:
+        '200':
+          description: Release updated
+
+  /repositories/{id}/releases/{version}/publish:
+    post:
+      tags: [Releases]
+      summary: Publish a draft release
+      description: |
+        Validates all entries have titles, generates Markdown/HTML/JSON outputs,
+        creates a revision snapshot, and marks the release as published.
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: version
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Published release with rendered outputs
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublishResult'
+
+  /repositories/{id}/releases/{version}/entries:
+    get:
+      tags: [Entries]
+      summary: List entries for a release
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: version
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Entry list ordered by position
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ChangelogEntry'
+    post:
+      tags: [Entries]
+      summary: Create a new entry
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: version
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [category, title]
+              properties:
+                category:
+                  type: string
+                  enum: [added, fixed, changed, removed, deprecated, security, performance, documentation, maintenance, breaking]
+                title:
+                  type: string
+                  minLength: 1
+                description:
+                  type: string
+                  nullable: true
+                impact:
+                  type: string
+                  enum: [critical, high, medium, low, negligible]
+                breaking:
+                  type: boolean
+      responses:
+        '201':
+          description: Entry created
+    patch:
+      tags: [Entries]
+      summary: Reorder entries
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: version
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [orderedIds]
+              properties:
+                orderedIds:
+                  type: array
+                  items:
+                    type: string
+                    format: uuid
+      responses:
+        '200':
+          description: Entries reordered
+
+  /repositories/{id}/releases/{version}/entries/{entryId}:
+    patch:
+      tags: [Entries]
+      summary: Update an entry
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: version
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: entryId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                category:
+                  type: string
+                title:
+                  type: string
+                description:
+                  type: string
+                  nullable: true
+                impact:
+                  type: string
+                breaking:
+                  type: boolean
+                reviewed:
+                  type: boolean
+      responses:
+        '200':
+          description: Entry updated
+    delete:
+      tags: [Entries]
+      summary: Delete an entry
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: version
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: entryId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Entry deleted
+
+  # ── Widgets ───────────────────────────────────────────────
+  /widgets:
+    get:
+      tags: [Widgets]
+      summary: List widgets for a repository
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: repositoryId
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Widget list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Widget'
+    post:
+      tags: [Widgets]
+      summary: Create a widget
+      security:
+        - cookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [repositoryId, type]
+              properties:
+                repositoryId:
+                  type: string
+                  format: uuid
+                type:
+                  type: string
+                  enum: [page, modal, badge]
+                config:
+                  type: object
+                domains:
+                  type: array
+                  items:
+                    type: string
+      responses:
+        '201':
+          description: Widget created
+
+  /widgets/{embedToken}/changelog:
+    get:
+      tags: [Widgets]
+      summary: Get changelog data for widget
+      description: Public endpoint for widget rendering. Returns published releases with entries.
+      parameters:
+        - name: embedToken
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Changelog data with releases and entries
+
+  /widgets/{embedToken}/events:
+    post:
+      tags: [Widgets]
+      summary: Ingest analytics events
+      description: Receives batched analytics events from embedded widgets.
+      parameters:
+        - name: embedToken
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [events]
+              properties:
+                events:
+                  type: array
+                  items:
+                    type: object
+                    required: [eventType, visitorHash]
+                    properties:
+                      eventType:
+                        type: string
+                        enum: [page_view, entry_click, scroll_depth, session_end]
+                      entryId:
+                        type: string
+                        format: uuid
+                        nullable: true
+                      visitorHash:
+                        type: string
+                      referrer:
+                        type: string
+                        nullable: true
+                      metadata:
+                        type: object
+      responses:
+        '200':
+          description: Events received
+
+  # ── Billing ───────────────────────────────────────────────
+  /billing/checkout:
+    post:
+      tags: [Billing]
+      summary: Create checkout session
+      security:
+        - cookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [workspaceId, priceId]
+              properties:
+                workspaceId:
+                  type: string
+                  format: uuid
+                priceId:
+                  type: string
+      responses:
+        '200':
+          description: Checkout URL
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  url:
+                    type: string
+                    format: uri
+
+  /billing/portal:
+    post:
+      tags: [Billing]
+      summary: Get customer portal URL
+      security:
+        - cookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [workspaceId]
+              properties:
+                workspaceId:
+                  type: string
+                  format: uuid
+      responses:
+        '200':
+          description: Portal URL
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  url:
+                    type: string
+                    format: uri
+
+  # ── Webhooks ──────────────────────────────────────────────
+  /webhooks/github:
+    post:
+      tags: [Webhooks]
+      summary: GitHub webhook receiver
+      description: Receives push, create, and release events from the GitHub App.
+      security:
+        - webhookSignature: []
+      responses:
+        '200':
+          description: Webhook processed
+        '401':
+          description: Invalid signature
+
+  /webhooks/polar:
+    post:
+      tags: [Webhooks]
+      summary: Polar webhook receiver
+      description: Receives subscription lifecycle events from Polar.
+      responses:
+        '200':
+          description: Webhook processed
+        '401':
+          description: Invalid signature
+
+  # ── GitHub Installation ───────────────────────────────────
+  /github/installation:
+    get:
+      tags: [Repositories]
+      summary: GitHub App installation callback
+      description: Handles the redirect after a user installs the GitHub App. Stores the installation and syncs repositories.
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: installation_id
+          in: query
+          required: true
+          schema:
+            type: integer
+        - name: setup_action
+          in: query
+          required: true
+          schema:
+            type: string
+            enum: [install]
+      responses:
+        '302':
+          description: Redirect to repositories page
