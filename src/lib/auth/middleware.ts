@@ -1,0 +1,62 @@
+import { NextRequest } from "next/server"
+import { getSessionFromCookies } from "./session"
+import { prisma } from "@/lib/db/prisma"
+import { AuthError, ForbiddenError } from "@/lib/utils/errors"
+import type { SessionPayload } from "@/types"
+import type { WorkspaceRole } from "@prisma/client"
+
+const ROLE_HIERARCHY: Record<WorkspaceRole, number> = {
+  owner: 4,
+  admin: 3,
+  editor: 2,
+  viewer: 1,
+}
+
+export async function requireAuth(): Promise<SessionPayload> {
+  const session = await getSessionFromCookies()
+  if (!session) {
+    throw new AuthError("Authentication required")
+  }
+  return session
+}
+
+export async function requireWorkspaceRole(
+  workspaceId: string,
+  minimumRole: WorkspaceRole,
+): Promise<{ session: SessionPayload; memberRole: WorkspaceRole }> {
+  const session = await requireAuth()
+
+  const member = await prisma.workspaceMember.findUnique({
+    where: {
+      workspaceId_userId: {
+        workspaceId,
+        userId: session.userId,
+      },
+    },
+  })
+
+  if (!member) {
+    throw new ForbiddenError("Not a member of this workspace")
+  }
+
+  if (ROLE_HIERARCHY[member.role] < ROLE_HIERARCHY[minimumRole]) {
+    throw new ForbiddenError(
+      `Requires ${minimumRole} role or higher`,
+    )
+  }
+
+  return { session, memberRole: member.role }
+}
+
+export function getWorkspaceIdFromParams(
+  request: NextRequest,
+  paramName = "id",
+): string {
+  const url = new URL(request.url)
+  const segments = url.pathname.split("/")
+  const paramIndex = segments.indexOf("workspaces") + 1
+  if (paramIndex === 0 || paramIndex >= segments.length) {
+    throw new Error(`Could not extract workspace ${paramName} from URL`)
+  }
+  return segments[paramIndex]
+}
