@@ -5,7 +5,7 @@ const AUTH_PAGES = ["/sign-in", "/sign-up"]
 const ACCESS_TOKEN_COOKIE = "changeloger_token"
 const REFRESH_TOKEN_COOKIE = "changeloger_refresh"
 
-export function middleware(request: NextRequest) {
+export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl
   const hasAccessToken = request.cookies.has(ACCESS_TOKEN_COOKIE)
   const hasRefreshToken = request.cookies.has(REFRESH_TOKEN_COOKIE)
