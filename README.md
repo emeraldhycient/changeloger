@@ -10,7 +10,7 @@
 
 <p align="center">
   <a href="#"><img alt="Build Status" src="https://img.shields.io/github/actions/workflow/status/your-org/changeloger/ci.yml?branch=main&style=flat-square" /></a>
-  <a href="LICENSE"><img alt="License: MIT" src="https://img.shields.io/badge/license-MIT-blue?style=flat-square" /></a>
+  <a href="LICENSE"><img alt="License: Proprietary" src="https://img.shields.io/badge/license-Proprietary-red?style=flat-square" /></a>
   <a href="package.json"><img alt="Version" src="https://img.shields.io/badge/version-0.0.1-green?style=flat-square" /></a>
 </p>
 
@@ -230,4 +230,4 @@ Contributions are welcome. Please see [docs/contributing.md](docs/contributing.m
 
 ## License
 
-This project is licensed under the [MIT License](LICENSE).
+This project is proprietary software. Personal, non-commercial use only. See [LICENSE](LICENSE) for details. Commercial licensing inquiries: legal@changeloger.com.
