@@ -1,5 +1,6 @@
 "use client"
 
+import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { Menu, Bell, LogOut, User, Settings } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -13,12 +14,14 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import { useAuth, useLogout } from "@/hooks/use-auth"
 
 const pageTitles: Record<string, string> = {
   "/dashboard": "Overview",
   "/dashboard/repositories": "Repositories",
   "/dashboard/editor": "Changelog Editor",
   "/dashboard/changelogs": "Published Changelogs",
+  "/dashboard/widgets": "Widgets",
   "/dashboard/team": "Team Members",
   "/dashboard/analytics": "Analytics",
   "/dashboard/settings": "Settings",
@@ -31,10 +34,20 @@ interface TopbarProps {
 export function Topbar({ onMobileMenuToggle }: TopbarProps) {
   const pathname = usePathname()
   const pageTitle = pageTitles[pathname] ?? "Dashboard"
+  const { data: user } = useAuth()
+  const logout = useLogout()
+
+  const initials = user?.name
+    ? user.name
+        .split(" ")
+        .map((n) => n[0])
+        .join("")
+        .toUpperCase()
+        .slice(0, 2)
+    : user?.email?.charAt(0).toUpperCase() || "U"
 
   return (
     <header className="flex h-16 shrink-0 items-center justify-between border-b bg-background px-4 md:px-6">
-      {/* Left side */}
       <div className="flex items-center gap-3">
         <Button
           variant="ghost"
@@ -56,7 +69,6 @@ export function Topbar({ onMobileMenuToggle }: TopbarProps) {
         </div>
       </div>
 
-      {/* Right side */}
       <div className="flex items-center gap-2">
         <ThemeToggle />
         <Button variant="ghost" size="icon" className="relative">
@@ -65,30 +77,37 @@ export function Topbar({ onMobileMenuToggle }: TopbarProps) {
         </Button>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon" className="rounded-full">
+            <Button variant="ghost" size="icon">
               <Avatar className="h-8 w-8">
                 <AvatarFallback className="bg-primary/10 text-xs font-medium text-primary">
-                  U
+                  {initials}
                 </AvatarFallback>
               </Avatar>
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-48">
             <DropdownMenuLabel>
-              <p className="text-sm font-medium">User</p>
-              <p className="text-xs text-muted-foreground">user@example.com</p>
+              <p className="text-sm font-medium">{user?.name || "User"}</p>
+              <p className="text-xs text-muted-foreground">{user?.email || ""}</p>
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
-            <DropdownMenuItem>
-              <User className="mr-2 h-4 w-4" />
-              Profile
+            <DropdownMenuItem asChild>
+              <Link href="/dashboard/settings">
+                <User className="mr-2 h-4 w-4" />
+                Profile
+              </Link>
             </DropdownMenuItem>
-            <DropdownMenuItem>
-              <Settings className="mr-2 h-4 w-4" />
-              Settings
+            <DropdownMenuItem asChild>
+              <Link href="/dashboard/settings">
+                <Settings className="mr-2 h-4 w-4" />
+                Settings
+              </Link>
             </DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem className="text-destructive focus:text-destructive">
+            <DropdownMenuItem
+              className="text-destructive focus:text-destructive"
+              onClick={() => logout.mutate()}
+            >
               <LogOut className="mr-2 h-4 w-4" />
               Sign Out
             </DropdownMenuItem>
