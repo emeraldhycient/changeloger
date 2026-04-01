@@ -182,74 +182,80 @@ export default function AnalyticsPage() {
               </div>
             </div>
           ) : (
-            <div className="relative">
-              {/* Y-axis labels + gridlines */}
-              <div className="flex">
-                <div className="flex w-8 shrink-0 flex-col justify-between pr-2 text-right text-[10px] text-muted-foreground" style={{ height: 200 }}>
-                  <span>{maxViews}</span>
-                  <span>{Math.round(maxViews * 0.75)}</span>
-                  <span>{Math.round(maxViews * 0.5)}</span>
-                  <span>{Math.round(maxViews * 0.25)}</span>
+            <div>
+              <div className="flex gap-3">
+                {/* Y-axis */}
+                <div className="flex w-10 shrink-0 flex-col justify-between text-right text-[10px] text-muted-foreground" style={{ height: 220 }}>
+                  <span>{maxViews.toLocaleString()}</span>
+                  <span>{Math.round(maxViews * 0.5).toLocaleString()}</span>
                   <span>0</span>
                 </div>
-                <div className="relative flex-1">
-                  {/* Gridlines */}
-                  {[0, 25, 50, 75, 100].map((pct) => (
-                    <div
-                      key={pct}
-                      className="absolute left-0 right-0 border-t border-border/40"
-                      style={{ bottom: `${pct}%`, height: 0 }}
-                    />
-                  ))}
-                  {/* Bars */}
-                  <div className="relative flex items-end gap-1" style={{ height: 200 }}>
-                    {last14Days.map((day) => {
-                      const viewHeight = maxViews > 0 ? (day.pageViews / maxViews) * 100 : 0
-                      const visitorHeight = maxViews > 0 ? (day.uniqueVisitors / maxViews) * 100 : 0
-                      return (
-                        <div
-                          key={day.date}
-                          className="group relative flex flex-1 items-end justify-center gap-px"
-                          style={{ height: "100%" }}
-                        >
-                          {/* Tooltip */}
-                          <div className="pointer-events-none absolute -top-16 left-1/2 z-10 -translate-x-1/2 rounded border border-border bg-popover px-2.5 py-1.5 text-[11px] text-popover-foreground shadow-md opacity-0 transition-opacity group-hover:opacity-100">
-                            <div className="font-medium">{new Date(day.date + "T00:00:00").toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}</div>
-                            <div className="mt-0.5 flex items-center gap-1.5">
-                              <span className="inline-block h-2 w-2 rounded-sm bg-primary" />
-                              {day.pageViews} views
+                {/* Chart area */}
+                <div className="flex-1 overflow-visible" style={{ height: 220 }}>
+                  <div className="relative h-full w-full">
+                    {/* Gridlines */}
+                    <div className="absolute inset-0 flex flex-col justify-between">
+                      {[0, 1, 2].map((i) => (
+                        <div key={i} className="border-t border-border/30" />
+                      ))}
+                    </div>
+                    {/* Bars */}
+                    <div className="relative flex h-full items-end gap-[3px] px-1">
+                      {last14Days.map((day) => {
+                        const viewPct = maxViews > 0 ? (day.pageViews / maxViews) * 100 : 0
+                        const visPct = maxViews > 0 ? (day.uniqueVisitors / maxViews) * 100 : 0
+                        return (
+                          <div
+                            key={day.date}
+                            className="group relative flex flex-1 items-end justify-center gap-[2px]"
+                            style={{ height: "100%" }}
+                          >
+                            {/* Tooltip */}
+                            <div className="pointer-events-none absolute bottom-full left-1/2 z-20 mb-2 -translate-x-1/2 whitespace-nowrap rounded border border-border bg-popover px-2.5 py-1.5 text-[11px] text-popover-foreground shadow-lg opacity-0 transition-opacity group-hover:opacity-100">
+                              <div className="font-semibold">{new Date(day.date + "T00:00:00").toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" })}</div>
+                              <div className="mt-1 space-y-0.5">
+                                <div className="flex items-center gap-1.5">
+                                  <span className="inline-block h-2 w-2 rounded-sm bg-primary" />
+                                  {day.pageViews} views
+                                </div>
+                                <div className="flex items-center gap-1.5">
+                                  <span className="inline-block h-2 w-2 rounded-sm bg-primary/40" />
+                                  {day.uniqueVisitors} visitors
+                                </div>
+                              </div>
                             </div>
-                            <div className="flex items-center gap-1.5">
-                              <span className="inline-block h-2 w-2 rounded-sm bg-primary/40" />
-                              {day.uniqueVisitors} visitors
-                            </div>
+                            {/* Views bar */}
+                            <div
+                              className="w-[45%] rounded-t bg-primary transition-colors group-hover:bg-primary/80"
+                              style={{ height: day.pageViews > 0 ? `${Math.max(viewPct, 3)}%` : "0%" }}
+                            />
+                            {/* Visitors bar */}
+                            <div
+                              className="w-[45%] rounded-t bg-primary/30 transition-colors group-hover:bg-primary/40"
+                              style={{ height: day.uniqueVisitors > 0 ? `${Math.max(visPct, 3)}%` : "0%" }}
+                            />
                           </div>
-                          {/* Visitor bar (behind) */}
-                          <div
-                            className="w-1/2 rounded-t bg-primary/30 transition-all"
-                            style={{ height: `${Math.max(visitorHeight, viewHeight > 0 ? 2 : 0)}%` }}
-                          />
-                          {/* Views bar (front) */}
-                          <div
-                            className="w-1/2 rounded-t bg-primary transition-all group-hover:bg-primary/90"
-                            style={{ height: `${Math.max(viewHeight, day.pageViews > 0 ? 2 : 0)}%` }}
-                          />
-                        </div>
-                      )
-                    })}
+                        )
+                      })}
+                    </div>
                   </div>
                 </div>
               </div>
               {/* X-axis labels */}
-              <div className="mt-2 flex pl-8">
-                {last14Days.map((day) => (
-                  <span key={day.date} className="flex-1 text-center text-[10px] text-muted-foreground">
-                    {new Date(day.date + "T00:00:00").toLocaleDateString(undefined, { month: "short", day: "numeric" })}
-                  </span>
-                ))}
+              <div className="mt-2 flex gap-3">
+                <div className="w-10 shrink-0" />
+                <div className="flex flex-1 gap-[3px] px-1">
+                  {last14Days.map((day, i) => (
+                    <span key={day.date} className="flex-1 text-center text-[10px] text-muted-foreground">
+                      {i % 2 === 0
+                        ? new Date(day.date + "T00:00:00").toLocaleDateString(undefined, { month: "short", day: "numeric" })
+                        : ""}
+                    </span>
+                  ))}
+                </div>
               </div>
               {/* Legend */}
-              <div className="mt-3 flex items-center justify-center gap-4 text-xs text-muted-foreground">
+              <div className="mt-4 flex items-center justify-center gap-5 text-xs text-muted-foreground">
                 <span className="flex items-center gap-1.5">
                   <span className="inline-block h-2.5 w-2.5 rounded-sm bg-primary" />
                   Views
