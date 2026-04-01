@@ -16,16 +16,16 @@ export async function GET(request: Request) {
       throw new ValidationError("workspaceId or repositoryId is required")
     }
 
-    const where = workspaceId ? { workspaceId } : { repositoryId: repositoryId! }
     const widgets = await prisma.widget.findMany({
-      where,
-      include: {
-        repository: { select: { id: true, name: true, fullName: true } },
+      where: {
+        ...(workspaceId ? { workspaceId } : {}),
+        ...(repositoryId ? { repositoryId } : {}),
       },
       orderBy: { createdAt: "desc" },
     })
     return Response.json(widgets)
   } catch (error) {
+    console.error("Widget GET error:", error)
     return handleApiError(error)
   }
 }
