@@ -171,18 +171,30 @@ export async function exchangeGitHubCode(code: string): Promise<OAuthUserInfo> {
   const profile = await userRes.json()
 
   // Fetch primary email
-  const emailsRes = await fetch("https://api.github.com/user/emails", {
-    headers: { Authorization: `Bearer ${tokens.access_token}` },
-  })
-  const emails = await emailsRes.json()
-  const primaryEmail = emails.find(
-    (e: { primary: boolean; verified: boolean }) => e.primary && e.verified,
-  )
+  let email = profile.email
+  try {
+    const emailsRes = await fetch("https://api.github.com/user/emails", {
+      headers: { Authorization: `Bearer ${tokens.access_token}` },
+    })
+    const emails = await emailsRes.json()
+    if (Array.isArray(emails)) {
+      const primaryEmail = emails.find(
+        (e: { primary: boolean; verified: boolean }) => e.primary && e.verified,
+      )
+      if (primaryEmail?.email) email = primaryEmail.email
+    }
+  } catch {
+    // Fall back to profile email if emails endpoint fails
+  }
+
+  if (!email) {
+    throw new Error("Could not retrieve email from GitHub. Ensure 'user:email' scope is granted.")
+  }
 
   return {
     provider: "github",
     providerUserId: String(profile.id),
-    email: primaryEmail?.email || profile.email,
+    email,
     name: profile.name || profile.login,
     avatarUrl: profile.avatar_url,
     accessToken: tokens.access_token,

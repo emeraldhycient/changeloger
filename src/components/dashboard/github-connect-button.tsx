@@ -9,17 +9,16 @@ const GITHUB_APP_SLUG = process.env.NEXT_PUBLIC_GITHUB_APP_SLUG || "changeloger"
 export function GitHubConnectButton() {
   const { currentWorkspaceId } = useWorkspaceStore()
 
-  // Pass workspace ID as state so the callback knows which workspace to link
-  const installUrl = currentWorkspaceId
-    ? `https://github.com/apps/${GITHUB_APP_SLUG}/installations/new?state=${currentWorkspaceId}`
-    : `https://github.com/apps/${GITHUB_APP_SLUG}/installations/new`
+  const handleConnect = () => {
+    const base = `https://github.com/apps/${GITHUB_APP_SLUG}/installations/new`
+    const url = currentWorkspaceId ? `${base}?state=${currentWorkspaceId}` : base
+    window.location.href = url
+  }
 
   return (
-    <Button asChild className="gap-2" disabled={!currentWorkspaceId}>
-      <a href={installUrl}>
-        <GitBranch className="h-4 w-4" />
-        Connect GitHub Repository
-      </a>
+    <Button className="gap-2" onClick={handleConnect}>
+      <GitBranch className="h-4 w-4" />
+      Connect GitHub Repository
     </Button>
   )
 }
