@@ -369,9 +369,9 @@ export default function WidgetsPage() {
               </DialogDescription>
             </DialogHeader>
 
-            <div className="space-y-5">
+            <div className="space-y-6 py-2">
               {/* Widget type selector */}
-              <div className="space-y-2">
+              <div className="space-y-3">
                 <label className="text-sm font-medium">Widget Type</label>
                 <div className="grid grid-cols-3 gap-3">
                   {WIDGET_TYPES.map((wt) => {
@@ -384,7 +384,7 @@ export default function WidgetsPage() {
                             disabled={locked}
                             onClick={() => setSelectedType(wt.type)}
                             className={cn(
-                              "relative flex flex-col items-center gap-2 border p-3 text-center transition-colors",
+                              "relative flex flex-col items-center gap-2.5 border p-4 text-center transition-colors",
                               selectedType === wt.type && !locked
                                 ? "border-primary ring-2 ring-primary/20"
                                 : "border-border hover:border-muted-foreground/30",
@@ -394,7 +394,7 @@ export default function WidgetsPage() {
                             {locked && (
                               <Lock className="absolute right-1.5 top-1.5 h-3 w-3 text-muted-foreground" />
                             )}
-                            <wt.icon className="h-5 w-5 text-primary" />
+                            <wt.icon className="h-6 w-6 text-primary" />
                             <span className="text-xs font-medium">{wt.title}</span>
                           </button>
                         </TooltipTrigger>
@@ -416,7 +416,7 @@ export default function WidgetsPage() {
                 <select
                   value={selectedRepoId}
                   onChange={(e) => setSelectedRepoId(e.target.value)}
-                  className="flex h-8 w-full items-center border border-border bg-background px-2.5 text-xs outline-none focus:border-ring focus:ring-1 focus:ring-ring/50"
+                  className="flex h-9 w-full items-center border border-border bg-background px-3 text-sm outline-none focus:border-ring focus:ring-1 focus:ring-ring/50"
                 >
                   <option value="">All workspace releases</option>
                   {repositories.map((r) => (
@@ -430,20 +430,20 @@ export default function WidgetsPage() {
               {/* Theme selector */}
               <div className="space-y-2">
                 <label className="text-sm font-medium">Theme</label>
-                <div className="flex gap-2">
+                <div className="flex gap-3">
                   {THEMES.map((t) => (
                     <button
                       key={t.value}
                       type="button"
                       onClick={() => setSelectedTheme(t.value)}
                       className={cn(
-                        "flex items-center gap-1.5 border px-3 py-1.5 text-xs transition-colors",
+                        "flex items-center gap-2 border px-4 py-2 text-sm transition-colors",
                         selectedTheme === t.value
                           ? "border-primary ring-2 ring-primary/20"
                           : "border-border hover:border-muted-foreground/30",
                       )}
                     >
-                      <t.icon className="h-3.5 w-3.5" />
+                      <t.icon className="h-4 w-4" />
                       {t.label}
                     </button>
                   ))}
@@ -453,12 +453,12 @@ export default function WidgetsPage() {
               {/* Primary color */}
               <div className="space-y-2">
                 <label className="text-sm font-medium">
-                  <Palette className="mr-1 inline h-3.5 w-3.5" />
+                  <Palette className="mr-1.5 inline h-3.5 w-3.5" />
                   Primary Color
                 </label>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-3">
                   <div
-                    className="h-8 w-8 border border-border"
+                    className="h-9 w-9 shrink-0 border border-border"
                     style={{ backgroundColor: primaryColor }}
                   />
                   <Input
@@ -466,13 +466,13 @@ export default function WidgetsPage() {
                     value={primaryColor}
                     onChange={(e) => setPrimaryColor(e.target.value)}
                     placeholder="#6366f1"
-                    className="h-8 w-32 font-mono text-xs"
+                    className="h-9 w-36 font-mono text-sm"
                   />
                 </div>
               </div>
             </div>
 
-            <DialogFooter>
+            <DialogFooter className="pt-2">
               <Button variant="ghost" onClick={() => setCreateOpen(false)}>
                 Cancel
               </Button>
