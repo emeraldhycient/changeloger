@@ -371,7 +371,7 @@ export default function WidgetsPage() {
 
             <div className="space-y-6 py-2">
               {/* Widget type selector */}
-              <div className="space-y-3">
+              <div className="space-y-4">
                 <label className="text-sm font-medium">Widget Type</label>
                 <div className="grid grid-cols-3 gap-3">
                   {WIDGET_TYPES.map((wt) => {
