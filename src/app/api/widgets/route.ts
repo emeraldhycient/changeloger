@@ -1,7 +1,9 @@
 import { z } from "zod"
 import { requireAuth } from "@/lib/auth/middleware"
 import { prisma } from "@/lib/db/prisma"
-import { handleApiError, ValidationError } from "@/lib/utils/errors"
+import { getPlanLimits } from "@/lib/billing/limits"
+import { handleApiError, ValidationError, BillingError } from "@/lib/utils/errors"
+import type { WorkspacePlan } from "@prisma/client"
 
 export async function GET(request: Request) {
   try {
@@ -33,6 +35,20 @@ export async function POST(request: Request) {
     const body = await request.json()
     const parsed = createSchema.safeParse(body)
     if (!parsed.success) throw new ValidationError("Invalid input", parsed.error.format())
+
+    // Enforce widget type by plan
+    const repo = await prisma.repository.findUnique({
+      where: { id: parsed.data.repositoryId },
+      include: { workspace: { select: { plan: true } } },
+    })
+    if (!repo) throw new ValidationError("Repository not found")
+
+    const limits = getPlanLimits(repo.workspace.plan as WorkspacePlan)
+    if (!limits.widgetTypes.includes(parsed.data.type)) {
+      throw new BillingError(
+        `The "${parsed.data.type}" widget type requires a higher plan. Your current plan (${repo.workspace.plan}) supports: ${limits.widgetTypes.join(", ")}.`,
+      )
+    }
 
     const { config, ...rest } = parsed.data
     const widget = await prisma.widget.create({
