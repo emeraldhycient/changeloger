@@ -43,11 +43,14 @@ import {
   Sun,
   Moon,
   Monitor,
+  FileText,
+  AlertCircle,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { apiClient } from "@/lib/api/client"
 import { useWorkspaceStore } from "@/stores/workspace-store"
 import { useWorkspaces } from "@/hooks/use-workspaces"
+import { useReleases, type Release } from "@/hooks/use-releases"
 
 // ─── Constants ──────────────────────────────────────────────────────────────
 
@@ -128,7 +131,7 @@ export default function WidgetsPage() {
   // State
   const [createOpen, setCreateOpen] = useState(false)
   const [selectedType, setSelectedType] = useState<WidgetType>("page")
-  const [selectedRepoId, setSelectedRepoId] = useState<string>("")
+  const [selectedScope, setSelectedScope] = useState<string>("all") // "all" | repo ID
   const [selectedTheme, setSelectedTheme] = useState<ThemeValue>("auto")
   const [primaryColor, setPrimaryColor] = useState("#6366f1")
   const [copied, setCopied] = useState<string | null>(null)
@@ -139,6 +142,7 @@ export default function WidgetsPage() {
   const { data: workspaces = [] } = useWorkspaces()
   const currentWorkspace = workspaces.find((w) => w.id === currentWorkspaceId)
   const isFreePlan = currentWorkspace?.plan === "free"
+  const hasWorkspace = !!currentWorkspaceId
 
   // ── Queries ─────────────────────────────────────────────────────────────
 
@@ -150,7 +154,7 @@ export default function WidgetsPage() {
       )
       return data
     },
-    enabled: !!currentWorkspaceId,
+    enabled: hasWorkspace,
   })
 
   const { data: repositories = [] } = useQuery<Repository[]>({
@@ -161,8 +165,10 @@ export default function WidgetsPage() {
       )
       return data
     },
-    enabled: !!currentWorkspaceId,
+    enabled: hasWorkspace,
   })
+
+  const { data: publishedReleases = [] } = useReleases(currentWorkspaceId, "published")
 
   // ── Mutations ───────────────────────────────────────────────────────────
 
@@ -176,6 +182,7 @@ export default function WidgetsPage() {
       repositoryId?: string
       config?: Record<string, unknown>
     }) => {
+      if (!currentWorkspaceId) throw new Error("No workspace selected")
       const { data } = await apiClient.post("/api/widgets", {
         workspaceId: currentWorkspaceId,
         type,
@@ -190,7 +197,7 @@ export default function WidgetsPage() {
       setSnippetWidget(widget)
       // Reset form
       setSelectedType("page")
-      setSelectedRepoId("")
+      setSelectedScope("all")
       setSelectedTheme("auto")
       setPrimaryColor("#6366f1")
     },
@@ -205,9 +212,10 @@ export default function WidgetsPage() {
   }
 
   const handleCreate = () => {
+    if (!hasWorkspace) return
     createWidget.mutate({
       type: selectedType,
-      repositoryId: selectedRepoId || undefined,
+      repositoryId: selectedScope !== "all" ? selectedScope : undefined,
       config: {
         theme: selectedTheme,
         primaryColor,
@@ -217,7 +225,7 @@ export default function WidgetsPage() {
 
   const handleOpenCreate = () => {
     setSelectedType("page")
-    setSelectedRepoId("")
+    setSelectedScope("all")
     setSelectedTheme("auto")
     setPrimaryColor("#6366f1")
     setCreateOpen(true)
@@ -238,11 +246,26 @@ export default function WidgetsPage() {
               Copy-paste a snippet to embed your changelog anywhere
             </p>
           </div>
-          <Button onClick={handleOpenCreate}>
+          <Button onClick={handleOpenCreate} disabled={!hasWorkspace}>
             <Plus className="mr-2 h-4 w-4" />
             Create Widget
           </Button>
         </div>
+
+        {/* No workspace warning */}
+        {!hasWorkspace && (
+          <div className="mb-6 flex items-start gap-3 rounded border border-amber-500/20 bg-amber-500/5 p-4">
+            <AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-amber-500" />
+            <div>
+              <p className="text-sm font-medium text-amber-700 dark:text-amber-400">
+                No workspace selected
+              </p>
+              <p className="mt-0.5 text-xs text-muted-foreground">
+                Select a workspace from the sidebar to manage your widgets.
+              </p>
+            </div>
+          </div>
+        )}
 
         {/* Widget list */}
         {isLoading ? (
@@ -410,22 +433,63 @@ export default function WidgetsPage() {
                 </p>
               </div>
 
-              {/* Repository selector */}
+              {/* Changelog scope selector */}
               <div className="space-y-2">
-                <label className="text-sm font-medium">Repository (optional)</label>
+                <label className="text-sm font-medium">Changelog Source</label>
                 <select
-                  value={selectedRepoId}
-                  onChange={(e) => setSelectedRepoId(e.target.value)}
+                  value={selectedScope}
+                  onChange={(e) => setSelectedScope(e.target.value)}
                   className="flex h-9 w-full items-center border border-border bg-background px-3 text-sm outline-none focus:border-ring focus:ring-1 focus:ring-ring/50"
                 >
-                  <option value="">All workspace releases</option>
-                  {repositories.map((r) => (
-                    <option key={r.id} value={r.id}>
-                      {r.fullName}
-                    </option>
-                  ))}
+                  <option value="all">All published changelogs</option>
+                  {repositories.length > 0 && (
+                    <optgroup label="By Repository">
+                      {repositories.map((r) => (
+                        <option key={r.id} value={r.id}>
+                          {r.fullName}
+                        </option>
+                      ))}
+                    </optgroup>
+                  )}
                 </select>
+                <p className="text-xs text-muted-foreground">
+                  {selectedScope === "all"
+                    ? "Widget will show all published changelogs in this workspace."
+                    : `Widget will only show changelogs from ${repositories.find((r) => r.id === selectedScope)?.fullName ?? "this repository"}.`}
+                </p>
               </div>
+
+              {/* Published changelogs preview */}
+              {publishedReleases.length > 0 ? (
+                <div className="space-y-2">
+                  <label className="text-xs font-medium text-muted-foreground">
+                    Published changelogs ({publishedReleases.filter((r) => selectedScope === "all" || r.repositoryId === selectedScope).length})
+                  </label>
+                  <div className="flex flex-wrap gap-1.5">
+                    {publishedReleases
+                      .filter((r) => selectedScope === "all" || r.repositoryId === selectedScope)
+                      .slice(0, 6)
+                      .map((r) => (
+                        <Badge key={r.id} variant="secondary" className="text-[10px]">
+                          <FileText className="mr-1 h-3 w-3" />
+                          v{r.version}
+                        </Badge>
+                      ))}
+                    {publishedReleases.filter((r) => selectedScope === "all" || r.repositoryId === selectedScope).length > 6 && (
+                      <Badge variant="secondary" className="text-[10px]">
+                        +{publishedReleases.filter((r) => selectedScope === "all" || r.repositoryId === selectedScope).length - 6} more
+                      </Badge>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                <div className="flex items-start gap-2 rounded border border-amber-500/20 bg-amber-500/5 p-3">
+                  <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-amber-500" />
+                  <p className="text-xs text-amber-700 dark:text-amber-400">
+                    No published changelogs yet. The widget will be empty until you publish a changelog from the editor.
+                  </p>
+                </div>
+              )}
 
               {/* Theme selector */}
               <div className="space-y-2">
@@ -478,7 +542,7 @@ export default function WidgetsPage() {
               </Button>
               <Button
                 onClick={handleCreate}
-                disabled={createWidget.isPending}
+                disabled={createWidget.isPending || !hasWorkspace}
               >
                 {createWidget.isPending ? "Creating..." : "Create Widget"}
               </Button>
