@@ -1,6 +1,19 @@
 "use client"
 
+import { useMemo } from "react"
 import { useQuery } from "@tanstack/react-query"
+import {
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  BarElement,
+  PointElement,
+  LineElement,
+  Tooltip as ChartTooltip,
+  Legend,
+  Filler,
+} from "chart.js"
+import { Bar } from "react-chartjs-2"
 import {
   BarChart3,
   Eye,
@@ -18,6 +31,17 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Badge } from "@/components/ui/badge"
 import { apiClient } from "@/lib/api/client"
 import { useWorkspaceStore } from "@/stores/workspace-store"
+
+ChartJS.register(
+  CategoryScale,
+  LinearScale,
+  BarElement,
+  PointElement,
+  LineElement,
+  ChartTooltip,
+  Legend,
+  Filler,
+)
 import { cn } from "@/lib/utils"
 
 interface AnalyticsSummary {
@@ -55,6 +79,111 @@ const WIDGET_ICONS: Record<string, typeof Globe> = {
   modal: Code,
   badge: Bell,
 }
+
+// ─── Chart.js Views Chart ──────────────────────────────────────────────────
+
+function ViewsChart({
+  dailyData,
+}: {
+  dailyData: Array<{ date: string; pageViews: number; uniqueVisitors: number; clicks: number }>
+}) {
+  const chartData = useMemo(() => {
+    const labels = dailyData.map((d) =>
+      new Date(d.date + "T00:00:00").toLocaleDateString(undefined, {
+        month: "short",
+        day: "numeric",
+      }),
+    )
+
+    return {
+      labels,
+      datasets: [
+        {
+          label: "Page Views",
+          data: dailyData.map((d) => d.pageViews),
+          backgroundColor: "hsl(262.1 83.3% 57.8% / 0.8)",
+          hoverBackgroundColor: "hsl(262.1 83.3% 57.8%)",
+          borderRadius: 4,
+          borderSkipped: false as const,
+        },
+        {
+          label: "Unique Visitors",
+          data: dailyData.map((d) => d.uniqueVisitors),
+          backgroundColor: "hsl(262.1 83.3% 57.8% / 0.25)",
+          hoverBackgroundColor: "hsl(262.1 83.3% 57.8% / 0.4)",
+          borderRadius: 4,
+          borderSkipped: false as const,
+        },
+      ],
+    }
+  }, [dailyData])
+
+  const options = useMemo(
+    () => ({
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: {
+        mode: "index" as const,
+        intersect: false,
+      },
+      plugins: {
+        legend: {
+          position: "bottom" as const,
+          labels: {
+            usePointStyle: true,
+            pointStyle: "rectRounded" as const,
+            padding: 20,
+            color: "hsl(215 20.2% 65.1%)",
+            font: { size: 12 },
+          },
+        },
+        tooltip: {
+          backgroundColor: "hsl(222.2 84% 4.9%)",
+          titleColor: "hsl(210 40% 98%)",
+          bodyColor: "hsl(215 20.2% 65.1%)",
+          borderColor: "hsl(217.2 32.6% 17.5%)",
+          borderWidth: 1,
+          cornerRadius: 6,
+          padding: 10,
+          bodySpacing: 4,
+          usePointStyle: true,
+        },
+      },
+      scales: {
+        x: {
+          grid: { display: false },
+          ticks: {
+            color: "hsl(215 20.2% 65.1%)",
+            font: { size: 11 },
+            maxRotation: 0,
+          },
+          border: { display: false },
+        },
+        y: {
+          beginAtZero: true,
+          grid: {
+            color: "hsl(217.2 32.6% 17.5% / 0.4)",
+          },
+          ticks: {
+            color: "hsl(215 20.2% 65.1%)",
+            font: { size: 11 },
+            precision: 0,
+          },
+          border: { display: false },
+        },
+      },
+    }),
+    [],
+  )
+
+  return (
+    <div style={{ height: 280 }}>
+      <Bar data={chartData} options={options} />
+    </div>
+  )
+}
+
+// ─── Helpers ──────────────────────────────────────────────────────────────
 
 function SkeletonCard() {
   return (
@@ -116,7 +245,6 @@ export default function AnalyticsPage() {
 
   // Chart data — last 14 days
   const last14Days = (data?.dailyData ?? []).slice(-14)
-  const maxViews = Math.max(...last14Days.map((d) => d.pageViews), 1)
 
   return (
     <div className="mx-auto max-w-6xl space-y-8">
@@ -165,15 +293,15 @@ export default function AnalyticsPage() {
             <BarChart3 className="h-5 w-5" />
             Views Over Time
           </CardTitle>
-          <CardDescription>Daily page views and visitors for the last 14 days</CardDescription>
+          <CardDescription>Daily page views and unique visitors for the last 14 days</CardDescription>
         </CardHeader>
         <CardContent>
           {isLoading ? (
-            <div className="flex h-64 items-center justify-center">
-              <div className="h-48 w-full animate-pulse rounded bg-muted" />
+            <div className="flex h-72 items-center justify-center">
+              <div className="h-56 w-full animate-pulse rounded bg-muted" />
             </div>
           ) : !hasData ? (
-            <div className="flex h-64 items-center justify-center rounded-lg border border-dashed text-muted-foreground">
+            <div className="flex h-72 items-center justify-center rounded-lg border border-dashed text-muted-foreground">
               <div className="text-center">
                 <BarChart3 className="mx-auto h-12 w-12 opacity-50" />
                 <p className="mt-4 text-sm">
@@ -182,90 +310,7 @@ export default function AnalyticsPage() {
               </div>
             </div>
           ) : (
-            <div>
-              <div className="flex gap-3">
-                {/* Y-axis */}
-                <div className="flex w-10 shrink-0 flex-col justify-between text-right text-[10px] text-muted-foreground" style={{ height: 220 }}>
-                  <span>{maxViews.toLocaleString()}</span>
-                  <span>{Math.round(maxViews * 0.5).toLocaleString()}</span>
-                  <span>0</span>
-                </div>
-                {/* Chart area */}
-                <div className="flex-1 overflow-visible" style={{ height: 220 }}>
-                  <div className="relative h-full w-full">
-                    {/* Gridlines */}
-                    <div className="absolute inset-0 flex flex-col justify-between">
-                      {[0, 1, 2].map((i) => (
-                        <div key={i} className="border-t border-border/30" />
-                      ))}
-                    </div>
-                    {/* Bars */}
-                    <div className="relative flex h-full items-end gap-[3px] px-1">
-                      {last14Days.map((day) => {
-                        const viewPct = maxViews > 0 ? (day.pageViews / maxViews) * 100 : 0
-                        const visPct = maxViews > 0 ? (day.uniqueVisitors / maxViews) * 100 : 0
-                        return (
-                          <div
-                            key={day.date}
-                            className="group relative flex flex-1 items-end justify-center gap-[2px]"
-                            style={{ height: "100%" }}
-                          >
-                            {/* Tooltip */}
-                            <div className="pointer-events-none absolute bottom-full left-1/2 z-20 mb-2 -translate-x-1/2 whitespace-nowrap rounded border border-border bg-popover px-2.5 py-1.5 text-[11px] text-popover-foreground shadow-lg opacity-0 transition-opacity group-hover:opacity-100">
-                              <div className="font-semibold">{new Date(day.date + "T00:00:00").toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" })}</div>
-                              <div className="mt-1 space-y-0.5">
-                                <div className="flex items-center gap-1.5">
-                                  <span className="inline-block h-2 w-2 rounded-sm bg-primary" />
-                                  {day.pageViews} views
-                                </div>
-                                <div className="flex items-center gap-1.5">
-                                  <span className="inline-block h-2 w-2 rounded-sm bg-primary/40" />
-                                  {day.uniqueVisitors} visitors
-                                </div>
-                              </div>
-                            </div>
-                            {/* Views bar */}
-                            <div
-                              className="w-[45%] rounded-t bg-primary transition-colors group-hover:bg-primary/80"
-                              style={{ height: day.pageViews > 0 ? `${Math.max(viewPct, 3)}%` : "0%" }}
-                            />
-                            {/* Visitors bar */}
-                            <div
-                              className="w-[45%] rounded-t bg-primary/30 transition-colors group-hover:bg-primary/40"
-                              style={{ height: day.uniqueVisitors > 0 ? `${Math.max(visPct, 3)}%` : "0%" }}
-                            />
-                          </div>
-                        )
-                      })}
-                    </div>
-                  </div>
-                </div>
-              </div>
-              {/* X-axis labels */}
-              <div className="mt-2 flex gap-3">
-                <div className="w-10 shrink-0" />
-                <div className="flex flex-1 gap-[3px] px-1">
-                  {last14Days.map((day, i) => (
-                    <span key={day.date} className="flex-1 text-center text-[10px] text-muted-foreground">
-                      {i % 2 === 0
-                        ? new Date(day.date + "T00:00:00").toLocaleDateString(undefined, { month: "short", day: "numeric" })
-                        : ""}
-                    </span>
-                  ))}
-                </div>
-              </div>
-              {/* Legend */}
-              <div className="mt-4 flex items-center justify-center gap-5 text-xs text-muted-foreground">
-                <span className="flex items-center gap-1.5">
-                  <span className="inline-block h-2.5 w-2.5 rounded-sm bg-primary" />
-                  Views
-                </span>
-                <span className="flex items-center gap-1.5">
-                  <span className="inline-block h-2.5 w-2.5 rounded-sm bg-primary/30" />
-                  Unique Visitors
-                </span>
-              </div>
-            </div>
+            <ViewsChart dailyData={last14Days} />
           )}
         </CardContent>
       </Card>
