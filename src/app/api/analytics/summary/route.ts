@@ -80,14 +80,28 @@ export async function GET(request: NextRequest) {
     // ── Daily Data for Chart ────────────────────────────────
     const dailyMap = new Map<string, { pageViews: number; uniqueVisitors: Set<string>; clicks: number }>()
 
-    // Fill in all days in range (even days with 0 events)
-    for (let d = new Date(since); d <= new Date(); d.setDate(d.getDate() + 1)) {
-      const key = d.toISOString().split("T")[0]
+    // Helper to get YYYY-MM-DD in local timezone
+    function toLocalDateStr(date: Date) {
+      const y = date.getFullYear()
+      const m = String(date.getMonth() + 1).padStart(2, "0")
+      const d = String(date.getDate()).padStart(2, "0")
+      return `${y}-${m}-${d}`
+    }
+
+    // Fill in all days in range including today
+    const now = new Date()
+    for (let d = new Date(since); d <= now; d.setDate(d.getDate() + 1)) {
+      const key = toLocalDateStr(d)
       dailyMap.set(key, { pageViews: 0, uniqueVisitors: new Set(), clicks: 0 })
+    }
+    // Ensure today is always included
+    const todayKey = toLocalDateStr(now)
+    if (!dailyMap.has(todayKey)) {
+      dailyMap.set(todayKey, { pageViews: 0, uniqueVisitors: new Set(), clicks: 0 })
     }
 
     for (const e of events) {
-      const key = new Date(e.timestamp).toISOString().split("T")[0]
+      const key = toLocalDateStr(new Date(e.timestamp))
       const day = dailyMap.get(key)
       if (!day) continue
       if (e.eventType === "page_view") day.pageViews++
