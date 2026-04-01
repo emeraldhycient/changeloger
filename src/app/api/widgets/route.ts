@@ -9,11 +9,19 @@ export async function GET(request: Request) {
   try {
     await requireAuth()
     const { searchParams } = new URL(request.url)
+    const workspaceId = searchParams.get("workspaceId")
     const repositoryId = searchParams.get("repositoryId")
-    if (!repositoryId) throw new ValidationError("repositoryId is required")
 
+    if (!workspaceId && !repositoryId) {
+      throw new ValidationError("workspaceId or repositoryId is required")
+    }
+
+    const where = workspaceId ? { workspaceId } : { repositoryId: repositoryId! }
     const widgets = await prisma.widget.findMany({
-      where: { repositoryId },
+      where,
+      include: {
+        repository: { select: { id: true, name: true, fullName: true } },
+      },
       orderBy: { createdAt: "desc" },
     })
     return Response.json(widgets)
@@ -23,7 +31,8 @@ export async function GET(request: Request) {
 }
 
 const createSchema = z.object({
-  repositoryId: z.string().uuid(),
+  workspaceId: z.string().uuid(),
+  repositoryId: z.string().uuid().optional(),
   type: z.enum(["page", "modal", "badge"]),
   config: z.record(z.string(), z.unknown()).optional(),
   domains: z.array(z.string()).optional(),
@@ -36,17 +45,17 @@ export async function POST(request: Request) {
     const parsed = createSchema.safeParse(body)
     if (!parsed.success) throw new ValidationError("Invalid input", parsed.error.format())
 
-    // Enforce widget type by plan
-    const repo = await prisma.repository.findUnique({
-      where: { id: parsed.data.repositoryId },
-      include: { workspace: { select: { plan: true } } },
+    // Get workspace plan for enforcement
+    const workspace = await prisma.workspace.findUnique({
+      where: { id: parsed.data.workspaceId },
+      select: { plan: true },
     })
-    if (!repo) throw new ValidationError("Repository not found")
+    if (!workspace) throw new ValidationError("Workspace not found")
 
-    const limits = getPlanLimits(repo.workspace.plan as WorkspacePlan)
+    const limits = getPlanLimits(workspace.plan as WorkspacePlan)
     if (!limits.widgetTypes.includes(parsed.data.type)) {
       throw new BillingError(
-        `The "${parsed.data.type}" widget type requires a higher plan. Your current plan (${repo.workspace.plan}) supports: ${limits.widgetTypes.join(", ")}.`,
+        `The "${parsed.data.type}" widget type requires a higher plan. Your current plan (${workspace.plan}) supports: ${limits.widgetTypes.join(", ")}.`,
       )
     }
 

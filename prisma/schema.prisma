@@ -149,6 +149,7 @@ model Workspace {
   githubInstallations GithubInstallation[]
   repositories        Repository[]
   releases            Release[]
+  widgets             Widget[]
 
   @@index([ownerId])
   @@map("workspaces")
@@ -331,7 +332,8 @@ model ReleaseRevision {
 
 model Widget {
   id           String     @id @default(uuid()) @db.Uuid
-  repositoryId String     @map("repository_id") @db.Uuid
+  workspaceId  String     @map("workspace_id") @db.Uuid
+  repositoryId String?    @map("repository_id") @db.Uuid
   type         WidgetType
   embedToken   String     @unique @default(uuid()) @map("embed_token")
   config       Json       @default("{}") @db.JsonB // colors, fonts, logo, etc.
@@ -339,10 +341,12 @@ model Widget {
   createdAt    DateTime   @default(now()) @map("created_at")
   updatedAt    DateTime   @updatedAt @map("updated_at")
 
-  repository      Repository       @relation(fields: [repositoryId], references: [id], onDelete: Cascade)
+  workspace       Workspace        @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  repository      Repository?      @relation(fields: [repositoryId], references: [id], onDelete: Cascade)
   analyticsEvents AnalyticsEvent[]
   analyticsDays   AnalyticsDaily[]
 
+  @@index([workspaceId])
   @@index([repositoryId])
   @@index([embedToken])
   @@map("widgets")

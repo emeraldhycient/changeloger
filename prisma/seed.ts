@@ -201,6 +201,7 @@ async function main() {
   if (!existingWidget) {
     await prisma.widget.create({
       data: {
+        workspaceId: teamWorkspace.id,
         repositoryId: sampleRepo.id,
         type: "page",
         config: { primaryColor: "#6C63FF", darkMode: true },
