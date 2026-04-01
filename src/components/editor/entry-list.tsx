@@ -76,12 +76,11 @@ function SortableEntryCard({
 // ─── EntryList ─────────────────────────────────────────────────────────────
 
 interface EntryListProps {
-  repositoryId: string
-  version: string
+  releaseId: string
 }
 
-export function EntryList({ repositoryId, version }: EntryListProps) {
-  const { data: entries = [], isLoading } = useEntries(repositoryId, version)
+export function EntryList({ releaseId }: EntryListProps) {
+  const { data: entries = [], isLoading } = useEntries(releaseId)
   const createEntry = useCreateEntry()
   const updateEntry = useUpdateEntry()
   const deleteEntry = useDeleteEntry()
@@ -103,35 +102,33 @@ export function EntryList({ repositoryId, version }: EntryListProps) {
 
       const reordered = arrayMove(entries, oldIndex, newIndex)
       reorderEntries.mutate({
-        repositoryId,
-        version,
+        releaseId,
         orderedIds: reordered.map((e) => e.id),
       })
     },
-    [entries, repositoryId, version, reorderEntries],
+    [entries, releaseId, reorderEntries],
   )
 
   const handleAddEntry = useCallback(() => {
     createEntry.mutate({
-      repositoryId,
-      version,
+      releaseId,
       category: "added",
       title: "New entry",
     })
-  }, [repositoryId, version, createEntry])
+  }, [releaseId, createEntry])
 
   const handleUpdate = useCallback(
     (entryId: string, updates: Partial<ReleaseEntry>) => {
-      updateEntry.mutate({ repositoryId, version, entryId, ...updates })
+      updateEntry.mutate({ releaseId, entryId, ...updates })
     },
-    [repositoryId, version, updateEntry],
+    [releaseId, updateEntry],
   )
 
   const handleDelete = useCallback(
     (entryId: string) => {
-      deleteEntry.mutate({ repositoryId, version, entryId })
+      deleteEntry.mutate({ releaseId, entryId })
     },
-    [repositoryId, version, deleteEntry],
+    [releaseId, deleteEntry],
   )
 
   if (isLoading) {

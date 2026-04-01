@@ -1,24 +1,18 @@
 import { NextRequest } from "next/server"
 import { z } from "zod"
 import { requireAuth } from "@/lib/auth/middleware"
-import { prisma } from "@/lib/db/prisma"
+import { findReleaseById } from "@/lib/db/queries/releases"
 import { findEntriesByRelease, createEntry, reorderEntries } from "@/lib/db/queries/changelog-entries"
 import { handleApiError, NotFoundError, ValidationError } from "@/lib/utils/errors"
 
-async function findRelease(repositoryId: string, version: string) {
-  return prisma.release.findFirst({
-    where: { repositoryId, version: decodeURIComponent(version) },
-  })
-}
-
 export async function GET(
   _request: NextRequest,
-  { params }: { params: Promise<{ id: string; version: string }> },
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
     await requireAuth()
-    const { id, version } = await params
-    const release = await findRelease(id, version)
+    const { id } = await params
+    const release = await findReleaseById(id)
     if (!release) throw new NotFoundError("Release not found")
     const entries = await findEntriesByRelease(release.id)
     return Response.json(entries)
@@ -37,12 +31,12 @@ const createSchema = z.object({
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string; version: string }> },
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
     await requireAuth()
-    const { id, version } = await params
-    const release = await findRelease(id, version)
+    const { id } = await params
+    const release = await findReleaseById(id)
     if (!release) throw new NotFoundError("Release not found")
 
     const body = await request.json()
@@ -61,12 +55,12 @@ const reorderSchema = z.object({ orderedIds: z.array(z.string().uuid()) })
 
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string; version: string }> },
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
     await requireAuth()
-    const { id, version } = await params
-    const release = await findRelease(id, version)
+    const { id } = await params
+    const release = await findReleaseById(id)
     if (!release) throw new NotFoundError("Release not found")
 
     const body = await request.json()

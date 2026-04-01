@@ -1,7 +1,8 @@
 import { NextRequest } from "next/server"
 import { z } from "zod"
 import { requireAuth } from "@/lib/auth/middleware"
-import { findReleasesByRepository, createDraftRelease } from "@/lib/db/queries/releases"
+import { findReleasesByRepository } from "@/lib/db/queries/releases"
+import { prisma } from "@/lib/db/prisma"
 import { handleApiError, ValidationError } from "@/lib/utils/errors"
 
 export async function GET(
@@ -20,7 +21,10 @@ export async function GET(
   }
 }
 
-const createSchema = z.object({ version: z.string().min(1), summary: z.string().optional() })
+const createSchema = z.object({
+  version: z.string().min(1),
+  summary: z.string().optional(),
+})
 
 export async function POST(
   request: NextRequest,
@@ -32,7 +36,20 @@ export async function POST(
     const body = await request.json()
     const parsed = createSchema.safeParse(body)
     if (!parsed.success) throw new ValidationError("Invalid input", parsed.error.format())
-    const release = await createDraftRelease({ repositoryId: id, ...parsed.data })
+
+    // Look up the repository to get its workspaceId
+    const repo = await prisma.repository.findUnique({ where: { id }, select: { workspaceId: true } })
+    if (!repo) throw new ValidationError("Repository not found")
+
+    const release = await prisma.release.create({
+      data: {
+        workspaceId: repo.workspaceId,
+        repositoryId: id,
+        version: parsed.data.version,
+        summary: parsed.data.summary,
+        status: "draft",
+      },
+    })
     return Response.json(release, { status: 201 })
   } catch (error) {
     return handleApiError(error)

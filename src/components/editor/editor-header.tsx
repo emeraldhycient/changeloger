@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { ArrowLeft, FileText, Send } from "lucide-react"
+import { ArrowLeft, FileText, Send, GitBranch, Layers } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -13,11 +13,10 @@ import { apiClient } from "@/lib/api/client"
 
 interface EditorHeaderProps {
   release: Release
-  repositoryId: string
   entryCount: number
 }
 
-export function EditorHeader({ release, repositoryId, entryCount }: EditorHeaderProps) {
+export function EditorHeader({ release, entryCount }: EditorHeaderProps) {
   const router = useRouter()
   const [publishOpen, setPublishOpen] = useState(false)
   const [editingVersion, setEditingVersion] = useState(false)
@@ -39,13 +38,9 @@ export function EditorHeader({ release, repositoryId, entryCount }: EditorHeader
     setEditingVersion(false)
     const trimmed = versionDraft.trim()
     if (trimmed && trimmed !== release.version) {
-      await apiClient.put(
-        `/api/repositories/${repositoryId}/releases/${encodeURIComponent(release.version)}`,
-        { newVersion: trimmed },
-      )
-      router.replace(
-        `/dashboard/editor?repo=${repositoryId}&version=${encodeURIComponent(trimmed)}`,
-      )
+      await apiClient.put(`/api/releases/${release.id}`, { newVersion: trimmed })
+      // URL stays the same since we use release ID
+      router.refresh()
     } else {
       setVersionDraft(release.version)
     }
@@ -106,6 +101,19 @@ export function EditorHeader({ release, repositoryId, entryCount }: EditorHeader
           >
             {isDraft ? "Draft" : "Published"}
           </Badge>
+
+          {/* Repository indicator */}
+          {release.repository ? (
+            <Badge variant="secondary" className="text-[10px]">
+              <GitBranch className="mr-1 h-3 w-3" />
+              {release.repository.fullName}
+            </Badge>
+          ) : (
+            <Badge variant="secondary" className="text-[10px]">
+              <Layers className="mr-1 h-3 w-3" />
+              Manual
+            </Badge>
+          )}
         </div>
 
         <div className="flex items-center gap-3">
@@ -135,7 +143,6 @@ export function EditorHeader({ release, repositoryId, entryCount }: EditorHeader
         open={publishOpen}
         onOpenChange={setPublishOpen}
         release={release}
-        repositoryId={repositoryId}
         entryCount={entryCount}
         breakingCount={breakingCount}
       />

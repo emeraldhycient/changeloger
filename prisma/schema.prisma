@@ -83,13 +83,13 @@ model User {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  oauthAccounts    OAuthAccount[]
-  sessions         Session[]
-  ownedWorkspaces  Workspace[]        @relation("WorkspaceOwner")
-  memberships      WorkspaceMember[]
-  sentInvitations  Invitation[]       @relation("InvitedBy")
+  oauthAccounts     OAuthAccount[]
+  sessions          Session[]
+  ownedWorkspaces   Workspace[]       @relation("WorkspaceOwner")
+  memberships       WorkspaceMember[]
+  sentInvitations   Invitation[]      @relation("InvitedBy")
   publishedReleases Release[]         @relation("PublishedBy")
-  releaseRevisions ReleaseRevision[]  @relation("CreatedBy")
+  releaseRevisions  ReleaseRevision[] @relation("CreatedBy")
 
   @@map("users")
 }
@@ -143,11 +143,12 @@ model Workspace {
   createdAt           DateTime      @default(now()) @map("created_at")
   updatedAt           DateTime      @updatedAt @map("updated_at")
 
-  owner               User                @relation("WorkspaceOwner", fields: [ownerId], references: [id])
+  owner               User                 @relation("WorkspaceOwner", fields: [ownerId], references: [id])
   members             WorkspaceMember[]
   invitations         Invitation[]
   githubInstallations GithubInstallation[]
   repositories        Repository[]
+  releases            Release[]
 
   @@index([ownerId])
   @@map("workspaces")
@@ -192,15 +193,15 @@ model Invitation {
 // ─── GitHub Integration ─────────────────────────────────────────────────────
 
 model GithubInstallation {
-  id              String   @id @default(uuid()) @db.Uuid
-  workspaceId     String   @map("workspace_id") @db.Uuid
-  installationId  Int      @unique @map("installation_id")
-  accountLogin    String   @map("account_login")
-  accountType     String   @map("account_type") // "User" | "Organization"
-  accessToken     String?  @map("access_token")
-  tokenExpiresAt  DateTime? @map("token_expires_at")
-  createdAt       DateTime @default(now()) @map("created_at")
-  updatedAt       DateTime @updatedAt @map("updated_at")
+  id             String    @id @default(uuid()) @db.Uuid
+  workspaceId    String    @map("workspace_id") @db.Uuid
+  installationId Int       @unique @map("installation_id")
+  accountLogin   String    @map("account_login")
+  accountType    String    @map("account_type") // "User" | "Organization"
+  accessToken    String?   @map("access_token")
+  tokenExpiresAt DateTime? @map("token_expires_at")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
 
   workspace    Workspace    @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   repositories Repository[]
@@ -210,24 +211,24 @@ model GithubInstallation {
 }
 
 model Repository {
-  id                    String   @id @default(uuid()) @db.Uuid
-  workspaceId           String   @map("workspace_id") @db.Uuid
-  githubInstallationId  String   @map("github_installation_id") @db.Uuid
-  githubRepoId          Int      @map("github_repo_id")
-  name                  String
-  fullName              String   @map("full_name")
-  defaultBranch         String   @default("main") @map("default_branch")
-  language              String?
-  isActive              Boolean  @default(true) @map("is_active")
-  config                Json     @default("{}") // branch filters, ignore paths, AI settings
-  createdAt             DateTime @default(now()) @map("created_at")
-  updatedAt             DateTime @updatedAt @map("updated_at")
+  id                   String   @id @default(uuid()) @db.Uuid
+  workspaceId          String   @map("workspace_id") @db.Uuid
+  githubInstallationId String   @map("github_installation_id") @db.Uuid
+  githubRepoId         Int      @map("github_repo_id")
+  name                 String
+  fullName             String   @map("full_name")
+  defaultBranch        String   @default("main") @map("default_branch")
+  language             String?
+  isActive             Boolean  @default(true) @map("is_active")
+  config               Json     @default("{}") // branch filters, ignore paths, AI settings
+  createdAt            DateTime @default(now()) @map("created_at")
+  updatedAt            DateTime @updatedAt @map("updated_at")
 
-  workspace           Workspace          @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  githubInstallation  GithubInstallation @relation(fields: [githubInstallationId], references: [id], onDelete: Cascade)
-  changeRecords       ChangeRecord[]
-  releases            Release[]
-  widgets             Widget[]
+  workspace          Workspace          @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  githubInstallation GithubInstallation @relation(fields: [githubInstallationId], references: [id], onDelete: Cascade)
+  changeRecords      ChangeRecord[]
+  releases           Release[]
+  widgets            Widget[]
 
   @@unique([workspaceId, githubRepoId])
   @@index([workspaceId])
@@ -238,22 +239,22 @@ model Repository {
 // ─── Changelog Data ─────────────────────────────────────────────────────────
 
 model ChangeRecord {
-  id           String         @id @default(uuid()) @db.Uuid
-  repositoryId String         @map("repository_id") @db.Uuid
+  id           String       @id @default(uuid()) @db.Uuid
+  repositoryId String       @map("repository_id") @db.Uuid
   source       ChangeSource
-  commitSha    String?        @map("commit_sha")
-  type         String?        // feat, fix, chore, etc.
+  commitSha    String?      @map("commit_sha")
+  type         String? // feat, fix, chore, etc.
   scope        String?
   subject      String
   body         String?
-  filesChanged Json?          @map("files_changed") @db.JsonB
-  breaking     Boolean        @default(false)
-  confidence   Float          @default(1.0)
-  impact       ImpactLevel    @default(medium)
-  authors      Json           @default("[]") @db.JsonB
+  filesChanged Json?        @map("files_changed") @db.JsonB
+  breaking     Boolean      @default(false)
+  confidence   Float        @default(1.0)
+  impact       ImpactLevel  @default(medium)
+  authors      Json         @default("[]") @db.JsonB
   timestamp    DateTime
-  metadata     Json           @default("{}") @db.JsonB
-  createdAt    DateTime       @default(now()) @map("created_at")
+  metadata     Json         @default("{}") @db.JsonB
+  createdAt    DateTime     @default(now()) @map("created_at")
 
   repository Repository @relation(fields: [repositoryId], references: [id], onDelete: Cascade)
 
@@ -286,7 +287,8 @@ model ChangelogEntry {
 
 model Release {
   id           String        @id @default(uuid()) @db.Uuid
-  repositoryId String        @map("repository_id") @db.Uuid
+  workspaceId  String        @map("workspace_id") @db.Uuid
+  repositoryId String?       @map("repository_id") @db.Uuid
   version      String
   date         DateTime      @default(now())
   tag          String?
@@ -298,12 +300,14 @@ model Release {
   createdAt    DateTime      @default(now()) @map("created_at")
   updatedAt    DateTime      @updatedAt @map("updated_at")
 
-  repository Repository       @relation(fields: [repositoryId], references: [id], onDelete: Cascade)
+  workspace  Workspace         @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  repository Repository?       @relation(fields: [repositoryId], references: [id], onDelete: Cascade)
   publisher  User?             @relation("PublishedBy", fields: [publishedBy], references: [id])
   entries    ChangelogEntry[]
   revisions  ReleaseRevision[]
 
-  @@unique([repositoryId, version])
+  @@unique([workspaceId, version])
+  @@index([workspaceId])
   @@index([repositoryId])
   @@index([status])
   @@map("releases")
@@ -335,7 +339,7 @@ model Widget {
   createdAt    DateTime   @default(now()) @map("created_at")
   updatedAt    DateTime   @updatedAt @map("updated_at")
 
-  repository     Repository       @relation(fields: [repositoryId], references: [id], onDelete: Cascade)
+  repository      Repository       @relation(fields: [repositoryId], references: [id], onDelete: Cascade)
   analyticsEvents AnalyticsEvent[]
   analyticsDays   AnalyticsDaily[]
 
@@ -363,14 +367,14 @@ model AnalyticsEvent {
 }
 
 model AnalyticsDaily {
-  id              String   @id @default(uuid()) @db.Uuid
-  widgetId        String   @map("widget_id") @db.Uuid
-  date            DateTime @db.Date
-  pageViews       Int      @default(0) @map("page_views")
-  uniqueVisitors  Int      @default(0) @map("unique_visitors")
-  entryClicks     Json     @default("{}") @map("entry_clicks") @db.JsonB
-  avgReadDepth    Float?   @map("avg_read_depth")
-  avgTimeOnPage   Float?   @map("avg_time_on_page")
+  id             String   @id @default(uuid()) @db.Uuid
+  widgetId       String   @map("widget_id") @db.Uuid
+  date           DateTime @db.Date
+  pageViews      Int      @default(0) @map("page_views")
+  uniqueVisitors Int      @default(0) @map("unique_visitors")
+  entryClicks    Json     @default("{}") @map("entry_clicks") @db.JsonB
+  avgReadDepth   Float?   @map("avg_read_depth")
+  avgTimeOnPage  Float?   @map("avg_time_on_page")
 
   widget Widget @relation(fields: [widgetId], references: [id], onDelete: Cascade)
 
