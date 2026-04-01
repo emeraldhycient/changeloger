@@ -24,6 +24,9 @@
   if (window.__changeloger_loaded) return;
   window.__changeloger_loaded = true;
 
+  // DOM-based guard: if we already rendered, don't re-init on HMR
+  if (document.querySelector("[data-changeloger-rendered]")) return;
+
   // ─── Constants ────────────────────────────────────────────────────────────
   var PREFIX = "clgr";
   var API_BASE = (function () {
@@ -300,13 +303,18 @@
       .finally(function () { flushing = false; });
     }
 
+    var visHandler = null;
+
     function start() {
       if (disabled || intervalId) return;
       intervalId = setInterval(flush, 5000);
-      // Also flush on page hide
-      document.addEventListener("visibilitychange", function () {
-        if (document.visibilityState === "hidden") flush();
-      });
+      // Also flush on page hide (only attach once)
+      if (!visHandler) {
+        visHandler = function () {
+          if (document.visibilityState === "hidden") flush();
+        };
+        document.addEventListener("visibilitychange", visHandler);
+      }
     }
 
     function stop() {
@@ -350,8 +358,18 @@
       container = document.querySelector(config.target);
     }
     if (!container) {
-      container = document.createElement("div");
-      config.scriptEl.parentNode.insertBefore(container, config.scriptEl.nextSibling);
+      // Check if we already created a container for this token
+      var existingId = PREFIX + "-page-" + config.token;
+      container = document.getElementById(existingId);
+      if (!container) {
+        container = document.createElement("div");
+        container.id = existingId;
+        if (config.scriptEl && config.scriptEl.parentNode) {
+          config.scriptEl.parentNode.insertBefore(container, config.scriptEl.nextSibling);
+        } else {
+          document.body.appendChild(container);
+        }
+      }
     }
 
     container.className = PREFIX + "-root " + PREFIX + "-page";
@@ -622,6 +640,9 @@
             initPageWidget(cfg);
             break;
         }
+
+        // Mark as rendered so DOM guard prevents re-init on HMR reloads
+        scriptEl.setAttribute("data-changeloger-rendered", "true");
       })
       .catch(function (err) {
         console.warn("[Changeloger] Failed to load changelog:", err.message);
