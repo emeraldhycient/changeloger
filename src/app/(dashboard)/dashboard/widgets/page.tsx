@@ -371,9 +371,9 @@ export default function WidgetsPage() {
 
             <div className="space-y-6 py-2">
               {/* Widget type selector */}
-              <div className="space-y-4">
+              <div>
                 <label className="text-sm font-medium">Widget Type</label>
-                <div className="grid grid-cols-3 gap-3">
+                <div className="mt-3 grid grid-cols-3 gap-3">
                   {WIDGET_TYPES.map((wt) => {
                     const locked = isFreePlan && !wt.freePlan
                     return (
@@ -405,7 +405,7 @@ export default function WidgetsPage() {
                     )
                   })}
                 </div>
-                <p className="text-xs text-muted-foreground">
+                <p className="mt-2.5 text-xs text-muted-foreground">
                   {WIDGET_TYPES.find((w) => w.type === selectedType)?.description}
                 </p>
               </div>
