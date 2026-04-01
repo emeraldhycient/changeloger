@@ -4,16 +4,14 @@ import type { ReleaseEntry } from "@/hooks/use-releases"
 
 export type { ReleaseEntry as ChangelogEntry }
 
-export function useEntries(repositoryId: string | undefined, version: string | undefined) {
+export function useEntries(releaseId: string | undefined | null) {
   return useQuery<ReleaseEntry[]>({
-    queryKey: ["entries", repositoryId, version],
+    queryKey: ["entries", releaseId],
     queryFn: async () => {
-      const { data } = await apiClient.get(
-        `/api/repositories/${repositoryId}/releases/${encodeURIComponent(version!)}/entries`,
-      )
+      const { data } = await apiClient.get(`/api/releases/${releaseId}/entries`)
       return data
     },
-    enabled: !!repositoryId && !!version,
+    enabled: !!releaseId,
   })
 }
 
@@ -22,34 +20,23 @@ export function useCreateEntry() {
 
   return useMutation({
     mutationFn: async ({
-      repositoryId,
-      version,
+      releaseId,
       ...entry
     }: {
-      repositoryId: string
-      version: string
+      releaseId: string
       category: string
       title: string
       description?: string | null
       impact?: string
       breaking?: boolean
     }) => {
-      const { data } = await apiClient.post(
-        `/api/repositories/${repositoryId}/releases/${encodeURIComponent(version)}/entries`,
-        entry,
-      )
+      const { data } = await apiClient.post(`/api/releases/${releaseId}/entries`, entry)
       return data as ReleaseEntry
     },
     onSuccess: (_data, variables) => {
-      queryClient.invalidateQueries({
-        queryKey: ["entries", variables.repositoryId, variables.version],
-      })
-      queryClient.invalidateQueries({
-        queryKey: ["release", variables.repositoryId, variables.version],
-      })
-      queryClient.invalidateQueries({
-        queryKey: ["releases", variables.repositoryId],
-      })
+      queryClient.invalidateQueries({ queryKey: ["entries", variables.releaseId] })
+      queryClient.invalidateQueries({ queryKey: ["release", variables.releaseId] })
+      queryClient.invalidateQueries({ queryKey: ["releases"] })
     },
   })
 }
@@ -59,13 +46,11 @@ export function useUpdateEntry() {
 
   return useMutation({
     mutationFn: async ({
-      repositoryId,
-      version,
+      releaseId,
       entryId,
       ...updates
     }: {
-      repositoryId: string
-      version: string
+      releaseId: string
       entryId: string
       category?: string
       title?: string
@@ -75,13 +60,13 @@ export function useUpdateEntry() {
       reviewed?: boolean
     }) => {
       const { data } = await apiClient.patch(
-        `/api/repositories/${repositoryId}/releases/${encodeURIComponent(version)}/entries/${entryId}`,
+        `/api/releases/${releaseId}/entries/${entryId}`,
         updates,
       )
       return data as ReleaseEntry
     },
     onMutate: async (variables) => {
-      const queryKey = ["entries", variables.repositoryId, variables.version]
+      const queryKey = ["entries", variables.releaseId]
       await queryClient.cancelQueries({ queryKey })
 
       const previousEntries = queryClient.getQueryData<ReleaseEntry[]>(queryKey)
@@ -102,9 +87,7 @@ export function useUpdateEntry() {
       }
     },
     onSettled: (_data, _error, variables) => {
-      queryClient.invalidateQueries({
-        queryKey: ["entries", variables.repositoryId, variables.version],
-      })
+      queryClient.invalidateQueries({ queryKey: ["entries", variables.releaseId] })
     },
   })
 }
@@ -114,28 +97,18 @@ export function useDeleteEntry() {
 
   return useMutation({
     mutationFn: async ({
-      repositoryId,
-      version,
+      releaseId,
       entryId,
     }: {
-      repositoryId: string
-      version: string
+      releaseId: string
       entryId: string
     }) => {
-      await apiClient.delete(
-        `/api/repositories/${repositoryId}/releases/${encodeURIComponent(version)}/entries/${entryId}`,
-      )
+      await apiClient.delete(`/api/releases/${releaseId}/entries/${entryId}`)
     },
     onSuccess: (_data, variables) => {
-      queryClient.invalidateQueries({
-        queryKey: ["entries", variables.repositoryId, variables.version],
-      })
-      queryClient.invalidateQueries({
-        queryKey: ["release", variables.repositoryId, variables.version],
-      })
-      queryClient.invalidateQueries({
-        queryKey: ["releases", variables.repositoryId],
-      })
+      queryClient.invalidateQueries({ queryKey: ["entries", variables.releaseId] })
+      queryClient.invalidateQueries({ queryKey: ["release", variables.releaseId] })
+      queryClient.invalidateQueries({ queryKey: ["releases"] })
     },
   })
 }
@@ -145,22 +118,20 @@ export function useReorderEntries() {
 
   return useMutation({
     mutationFn: async ({
-      repositoryId,
-      version,
+      releaseId,
       orderedIds,
     }: {
-      repositoryId: string
-      version: string
+      releaseId: string
       orderedIds: string[]
     }) => {
       const { data } = await apiClient.patch(
-        `/api/repositories/${repositoryId}/releases/${encodeURIComponent(version)}/entries`,
+        `/api/releases/${releaseId}/entries`,
         { orderedIds },
       )
       return data as ReleaseEntry[]
     },
     onMutate: async (variables) => {
-      const queryKey = ["entries", variables.repositoryId, variables.version]
+      const queryKey = ["entries", variables.releaseId]
       await queryClient.cancelQueries({ queryKey })
 
       const previousEntries = queryClient.getQueryData<ReleaseEntry[]>(queryKey)
@@ -184,9 +155,7 @@ export function useReorderEntries() {
       }
     },
     onSettled: (_data, _error, variables) => {
-      queryClient.invalidateQueries({
-        queryKey: ["entries", variables.repositoryId, variables.version],
-      })
+      queryClient.invalidateQueries({ queryKey: ["entries", variables.releaseId] })
     },
   })
 }

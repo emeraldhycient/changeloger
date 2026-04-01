@@ -18,7 +18,8 @@ export interface ReleaseEntry {
 
 export interface Release {
   id: string
-  repositoryId: string
+  workspaceId: string
+  repositoryId: string | null
   version: string
   date: string
   tag: string | null
@@ -31,31 +32,31 @@ export interface Release {
   updatedAt: string
   _count?: { entries: number }
   entries?: ReleaseEntry[]
+  repository?: { id: string; name: string; fullName: string } | null
   publisher?: { id: string; name: string | null; avatarUrl: string | null } | null
 }
 
-export function useReleases(repositoryId: string | undefined, status?: string) {
+export function useReleases(workspaceId: string | undefined | null, status?: string) {
   return useQuery<Release[]>({
-    queryKey: ["releases", repositoryId, status],
+    queryKey: ["releases", workspaceId, status],
     queryFn: async () => {
-      const params = status ? `?status=${status}` : ""
-      const { data } = await apiClient.get(`/api/repositories/${repositoryId}/releases${params}`)
+      const params = new URLSearchParams({ workspaceId: workspaceId! })
+      if (status) params.set("status", status)
+      const { data } = await apiClient.get(`/api/releases?${params}`)
       return data
     },
-    enabled: !!repositoryId,
+    enabled: !!workspaceId,
   })
 }
 
-export function useRelease(repositoryId: string | undefined, version: string | undefined) {
+export function useRelease(releaseId: string | undefined | null) {
   return useQuery<Release>({
-    queryKey: ["release", repositoryId, version],
+    queryKey: ["release", releaseId],
     queryFn: async () => {
-      const { data } = await apiClient.get(
-        `/api/repositories/${repositoryId}/releases/${encodeURIComponent(version!)}`,
-      )
+      const { data } = await apiClient.get(`/api/releases/${releaseId}`)
       return data
     },
-    enabled: !!repositoryId && !!version,
+    enabled: !!releaseId,
   })
 }
 
@@ -64,22 +65,26 @@ export function useCreateRelease() {
 
   return useMutation({
     mutationFn: async ({
-      repositoryId,
+      workspaceId,
       version,
       summary,
+      repositoryId,
     }: {
-      repositoryId: string
+      workspaceId: string
       version: string
       summary?: string
+      repositoryId?: string
     }) => {
-      const { data } = await apiClient.post(`/api/repositories/${repositoryId}/releases`, {
+      const { data } = await apiClient.post("/api/releases", {
+        workspaceId,
         version,
         summary,
+        repositoryId,
       })
       return data as Release
     },
     onSuccess: (_data, variables) => {
-      queryClient.invalidateQueries({ queryKey: ["releases", variables.repositoryId] })
+      queryClient.invalidateQueries({ queryKey: ["releases", variables.workspaceId] })
     },
   })
 }

@@ -122,9 +122,10 @@ async function main() {
 
   // ── Sample Release with entries ──────────────────────────
   const release = await prisma.release.upsert({
-    where: { repositoryId_version: { repositoryId: sampleRepo.id, version: "1.2.0" } },
+    where: { workspaceId_version: { workspaceId: teamWorkspace.id, version: "1.2.0" } },
     update: {},
     create: {
+      workspaceId: teamWorkspace.id,
       repositoryId: sampleRepo.id,
       version: "1.2.0",
       status: "published",
@@ -183,9 +184,10 @@ async function main() {
 
   // ── Draft release ────────────────────────────────────────
   await prisma.release.upsert({
-    where: { repositoryId_version: { repositoryId: sampleRepo.id, version: "1.3.0" } },
+    where: { workspaceId_version: { workspaceId: teamWorkspace.id, version: "1.3.0" } },
     update: {},
     create: {
+      workspaceId: teamWorkspace.id,
       repositoryId: sampleRepo.id,
       version: "1.3.0",
       status: "draft",

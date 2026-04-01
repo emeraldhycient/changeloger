@@ -2,7 +2,6 @@
 
 import { useState, useCallback, Suspense } from "react"
 import { useSearchParams, useRouter } from "next/navigation"
-import { useQuery } from "@tanstack/react-query"
 import {
   PenLine,
   Plus,
@@ -10,12 +9,12 @@ import {
   FileText,
   Calendar,
   Loader2,
+  Layers,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
-import { apiClient } from "@/lib/api/client"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
 import {
   Dialog,
@@ -25,52 +24,37 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
-import { useWorkspaces } from "@/hooks/use-workspaces"
+import { useWorkspaceStore } from "@/stores/workspace-store"
 import { useReleases, useCreateRelease, useRelease } from "@/hooks/use-releases"
 import { useEntries } from "@/hooks/use-changelog-entries"
 import { EditorHeader } from "@/components/editor/editor-header"
 import { EntryList } from "@/components/editor/entry-list"
-
-// ─── Repository type ───────────────────────────────────────────────────────
-
-interface Repository {
-  id: string
-  name: string
-  fullName: string
-  language: string | null
-  isActive: boolean
-}
 
 // ─── New Draft Dialog ──────────────────────────────────────────────────────
 
 function NewDraftDialog({
   open,
   onOpenChange,
-  repositories,
 }: {
   open: boolean
   onOpenChange: (open: boolean) => void
-  repositories: Repository[]
 }) {
   const router = useRouter()
+  const { currentWorkspaceId } = useWorkspaceStore()
   const createRelease = useCreateRelease()
-  const [selectedRepo, setSelectedRepo] = useState<string>("")
   const [version, setVersion] = useState("")
 
   const handleCreate = async () => {
-    if (!selectedRepo || !version.trim()) return
+    if (!currentWorkspaceId || !version.trim()) return
 
     const release = await createRelease.mutateAsync({
-      repositoryId: selectedRepo,
+      workspaceId: currentWorkspaceId,
       version: version.trim(),
     })
 
     onOpenChange(false)
-    setSelectedRepo("")
     setVersion("")
-    router.push(
-      `/dashboard/editor?repo=${selectedRepo}&version=${encodeURIComponent(release.version)}`,
-    )
+    router.push(`/dashboard/editor?release=${release.id}`)
   }
 
   return (
@@ -79,30 +63,11 @@ function NewDraftDialog({
         <DialogHeader>
           <DialogTitle>Create New Draft</DialogTitle>
           <DialogDescription>
-            Start a new changelog release draft for a repository.
+            Start a new changelog release draft. You can optionally link a repository later.
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4">
-          {/* Repository select */}
-          <div className="space-y-2">
-            <label className="text-xs font-medium text-foreground">
-              Repository
-            </label>
-            <select
-              value={selectedRepo}
-              onChange={(e) => setSelectedRepo(e.target.value)}
-              className="flex h-8 w-full items-center rounded-none border border-border bg-background px-2.5 text-xs outline-none focus:border-ring focus:ring-1 focus:ring-ring/50"
-            >
-              <option value="">Select a repository...</option>
-              {repositories.map((repo) => (
-                <option key={repo.id} value={repo.id}>
-                  {repo.fullName}
-                </option>
-              ))}
-            </select>
-          </div>
-
           {/* Version input */}
           <div className="space-y-2">
             <label className="text-xs font-medium text-foreground">
@@ -125,7 +90,7 @@ function NewDraftDialog({
           </Button>
           <Button
             onClick={handleCreate}
-            disabled={!selectedRepo || !version.trim() || createRelease.isPending}
+            disabled={!version.trim() || createRelease.isPending}
           >
             {createRelease.isPending ? (
               <>
@@ -144,49 +109,16 @@ function NewDraftDialog({
 
 // ─── Draft list view ───────────────────────────────────────────────────────
 
-function DraftListView({
-  repositories,
-  isLoadingRepos,
-}: {
-  repositories: Repository[]
-  isLoadingRepos: boolean
-}) {
+function DraftListView() {
   const router = useRouter()
   const [newDraftOpen, setNewDraftOpen] = useState(false)
+  const { currentWorkspaceId } = useWorkspaceStore()
 
-  // Fetch draft releases across all repos
-  const repoIds = repositories.map((r) => r.id)
-  const {
-    data: allDrafts = [],
-    isLoading: isLoadingDrafts,
-  } = useQuery({
-    queryKey: ["all-drafts", repoIds],
-    queryFn: async () => {
-      const results = await Promise.all(
-        repoIds.map(async (id) => {
-          const { data } = await apiClient.get(
-            `/api/repositories/${id}/releases?status=draft`,
-          )
-          return (data as Array<Record<string, unknown>>).map((r) => ({
-            ...r,
-            _repositoryId: id,
-            _repositoryName:
-              repositories.find((repo) => repo.id === id)?.fullName ?? id,
-          }))
-        }),
-      )
-      return results.flat()
-    },
-    enabled: repoIds.length > 0,
-  })
-
-  const isLoading = isLoadingRepos || isLoadingDrafts
+  const { data: allDrafts = [], isLoading } = useReleases(currentWorkspaceId, "draft")
 
   const handleSelectDraft = useCallback(
-    (repoId: string, version: string) => {
-      router.push(
-        `/dashboard/editor?repo=${repoId}&version=${encodeURIComponent(version)}`,
-      )
+    (releaseId: string) => {
+      router.push(`/dashboard/editor?release=${releaseId}`)
     },
     [router],
   )
@@ -201,7 +133,7 @@ function DraftListView({
           </p>
         </div>
 
-        <Button onClick={() => setNewDraftOpen(true)} disabled={repositories.length === 0}>
+        <Button onClick={() => setNewDraftOpen(true)} disabled={!currentWorkspaceId}>
           <Plus className="mr-1.5 h-4 w-4" />
           New Draft
         </Button>
@@ -218,37 +150,28 @@ function DraftListView({
           <div className="flex h-12 w-12 items-center justify-center rounded-full bg-muted">
             <PenLine className="h-6 w-6 text-muted-foreground" />
           </div>
-          <h3 className="mt-4 text-lg font-semibold">No drafts available</h3>
+          <h3 className="mt-4 text-lg font-semibold">No drafts yet</h3>
           <p className="mt-1 text-sm text-muted-foreground">
-            {repositories.length === 0
-              ? "Connect a repository to generate your first changelog draft."
-              : "Create a new draft release to get started."}
+            Create a new draft to start writing your changelog.
           </p>
           <Button
             variant="outline"
             className="mt-6"
             onClick={() => setNewDraftOpen(true)}
-            disabled={repositories.length === 0}
           >
             Create New Draft
           </Button>
         </div>
       ) : (
         <div className="flex flex-col gap-3">
-          {allDrafts.map((draft: Record<string, unknown>) => {
-            const entryCount =
-              (draft._count as { entries: number } | undefined)?.entries ?? 0
+          {allDrafts.map((draft) => {
+            const entryCount = draft._count?.entries ?? 0
             return (
               <Card
-                key={draft.id as string}
+                key={draft.id}
                 size="sm"
                 className="cursor-pointer transition-shadow hover:shadow-sm"
-                onClick={() =>
-                  handleSelectDraft(
-                    draft._repositoryId as string,
-                    draft.version as string,
-                  )
-                }
+                onClick={() => handleSelectDraft(draft.id)}
               >
                 <CardContent className="flex items-center justify-between">
                   <div className="flex items-center gap-4">
@@ -258,7 +181,7 @@ function DraftListView({
                     <div>
                       <div className="flex items-center gap-2">
                         <span className="text-sm font-medium">
-                          v{draft.version as string}
+                          v{draft.version}
                         </span>
                         <Badge
                           variant="outline"
@@ -268,17 +191,24 @@ function DraftListView({
                         </Badge>
                       </div>
                       <div className="mt-0.5 flex items-center gap-3 text-xs text-muted-foreground">
-                        <span className="flex items-center gap-1">
-                          <GitBranch className="h-3 w-3" />
-                          {draft._repositoryName as string}
-                        </span>
+                        {draft.repository ? (
+                          <span className="flex items-center gap-1">
+                            <GitBranch className="h-3 w-3" />
+                            {draft.repository.fullName}
+                          </span>
+                        ) : (
+                          <span className="flex items-center gap-1">
+                            <Layers className="h-3 w-3" />
+                            Manual
+                          </span>
+                        )}
                         <span className="flex items-center gap-1">
                           <FileText className="h-3 w-3" />
                           {entryCount} {entryCount === 1 ? "entry" : "entries"}
                         </span>
                         <span className="flex items-center gap-1">
                           <Calendar className="h-3 w-3" />
-                          {new Date(draft.createdAt as string).toLocaleDateString()}
+                          {new Date(draft.createdAt).toLocaleDateString()}
                         </span>
                       </div>
                     </div>
@@ -294,29 +224,16 @@ function DraftListView({
         </div>
       )}
 
-      <NewDraftDialog
-        open={newDraftOpen}
-        onOpenChange={setNewDraftOpen}
-        repositories={repositories}
-      />
+      <NewDraftDialog open={newDraftOpen} onOpenChange={setNewDraftOpen} />
     </div>
   )
 }
 
 // ─── Editor view ───────────────────────────────────────────────────────────
 
-function EditorView({
-  repositoryId,
-  version,
-}: {
-  repositoryId: string
-  version: string
-}) {
-  const { data: release, isLoading: isLoadingRelease } = useRelease(
-    repositoryId,
-    version,
-  )
-  const { data: entries = [] } = useEntries(repositoryId, version)
+function EditorView({ releaseId }: { releaseId: string }) {
+  const { data: release, isLoading: isLoadingRelease } = useRelease(releaseId)
+  const { data: entries = [] } = useEntries(releaseId)
 
   if (isLoadingRelease) {
     return (
@@ -346,13 +263,9 @@ function EditorView({
 
   return (
     <div className="mx-auto max-w-5xl space-y-6">
-      <EditorHeader
-        release={release}
-        repositoryId={repositoryId}
-        entryCount={entries.length}
-      />
+      <EditorHeader release={release} entryCount={entries.length} />
       <Separator />
-      <EntryList repositoryId={repositoryId} version={version} />
+      <EntryList releaseId={releaseId} />
     </div>
   )
 }
@@ -361,36 +274,13 @@ function EditorView({
 
 function EditorPageContent() {
   const searchParams = useSearchParams()
-  const repo = searchParams.get("repo")
-  const version = searchParams.get("version")
+  const releaseId = searchParams.get("release")
 
-  const { data: workspaces = [] } = useWorkspaces()
-  const firstWorkspaceId = workspaces[0]?.id
-
-  const {
-    data: repositories = [],
-    isLoading: isLoadingRepos,
-  } = useQuery<Repository[]>({
-    queryKey: ["repositories", firstWorkspaceId],
-    queryFn: async () => {
-      const { data } = await apiClient.get(
-        `/api/repositories?workspaceId=${firstWorkspaceId}`,
-      )
-      return data
-    },
-    enabled: !!firstWorkspaceId,
-  })
-
-  if (repo && version) {
-    return <EditorView repositoryId={repo} version={version} />
+  if (releaseId) {
+    return <EditorView releaseId={releaseId} />
   }
 
-  return (
-    <DraftListView
-      repositories={repositories}
-      isLoadingRepos={isLoadingRepos}
-    />
-  )
+  return <DraftListView />
 }
 
 export default function EditorPage() {

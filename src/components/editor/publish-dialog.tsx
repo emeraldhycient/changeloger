@@ -21,7 +21,6 @@ interface PublishDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   release: Release
-  repositoryId: string
   entryCount: number
   breakingCount: number
 }
@@ -30,7 +29,6 @@ export function PublishDialog({
   open,
   onOpenChange,
   release,
-  repositoryId,
   entryCount,
   breakingCount,
 }: PublishDialogProps) {
@@ -44,9 +42,7 @@ export function PublishDialog({
   const handlePublish = async () => {
     setPublishing(true)
     try {
-      await apiClient.post(
-        `/api/repositories/${repositoryId}/releases/${encodeURIComponent(release.version)}/publish`,
-      )
+      await apiClient.post(`/api/releases/${release.id}/publish`)
       setPublished(true)
       setTimeout(() => {
         onOpenChange(false)
