@@ -693,190 +693,195 @@ export default function WidgetsPage() {
           open={!!detailWidget}
           onOpenChange={(open) => !open && setDetailWidget(null)}
         >
-          <SheetContent side="right" className="flex flex-col overflow-y-auto">
+          <SheetContent side="right" className="flex w-full flex-col gap-0 p-0 sm:max-w-md">
             {detailWidget && (
               <>
-                <SheetHeader>
-                  <SheetTitle className="flex items-center gap-2">
-                    <Badge variant="secondary" className="capitalize">
-                      {detailWidget.type}
-                    </Badge>
-                    Edit Widget
-                  </SheetTitle>
-                  <SheetDescription>
-                    Update your widget configuration. Changes take effect immediately after saving.
-                  </SheetDescription>
-                </SheetHeader>
+                <div className="border-b px-6 py-5">
+                  <SheetHeader className="space-y-1.5">
+                    <SheetTitle className="flex items-center gap-2">
+                      <Badge variant="secondary" className="capitalize">
+                        {detailWidget.type}
+                      </Badge>
+                      Edit Widget
+                    </SheetTitle>
+                    <SheetDescription>
+                      Update configuration. Changes take effect after saving.
+                    </SheetDescription>
+                  </SheetHeader>
+                </div>
 
-                <div className="flex-1 space-y-6 py-4">
-                  {/* Embed snippet */}
-                  <div className="space-y-2">
-                    <label className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                      Embed Snippet
-                    </label>
-                    <div className="rounded border border-border bg-muted/50 p-2.5">
-                      <code className="block whitespace-pre-wrap break-all text-[10px] leading-relaxed">
-                        {getEmbedSnippet(detailWidget.embedToken, detailWidget.type, editTheme)}
-                      </code>
-                    </div>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="w-full gap-1.5"
-                      onClick={() =>
-                        handleCopy(
-                          getEmbedSnippet(detailWidget.embedToken, detailWidget.type, editTheme),
-                          `detail-${detailWidget.id}`,
-                        )
-                      }
-                    >
-                      {copied === `detail-${detailWidget.id}` ? (
-                        <>
-                          <Check className="h-3.5 w-3.5 text-green-500" />
-                          Copied!
-                        </>
-                      ) : (
-                        <>
-                          <Copy className="h-3.5 w-3.5" />
-                          Copy Snippet
-                        </>
-                      )}
-                    </Button>
-                  </div>
-
-                  <Separator />
-
-                  {/* Changelog source */}
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium">Changelog Source</label>
-                    <select
-                      value={editScope}
-                      onChange={(e) => setEditScope(e.target.value)}
-                      className="flex h-9 w-full items-center border border-border bg-background px-3 text-sm outline-none focus:border-ring focus:ring-1 focus:ring-ring/50"
-                    >
-                      <option value="all">All workspace releases</option>
-                      {repositories.length > 0 && (
-                        <optgroup label="Filter by Repository">
-                          {repositories.map((r) => (
-                            <option key={r.id} value={r.id}>
-                              {r.fullName}
-                            </option>
-                          ))}
-                        </optgroup>
-                      )}
-                    </select>
-                  </div>
-
-                  {/* Theme */}
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium">Theme</label>
-                    <div className="flex gap-2">
-                      {THEMES.map((t) => (
-                        <button
-                          key={t.value}
-                          type="button"
-                          onClick={() => setEditTheme(t.value)}
-                          className={cn(
-                            "flex items-center gap-1.5 border px-3 py-1.5 text-xs transition-colors",
-                            editTheme === t.value
-                              ? "border-primary ring-2 ring-primary/20"
-                              : "border-border hover:border-muted-foreground/30",
-                          )}
-                        >
-                          <t.icon className="h-3.5 w-3.5" />
-                          {t.label}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Primary color */}
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium">
-                      <Palette className="mr-1.5 inline h-3.5 w-3.5" />
-                      Primary Color
-                    </label>
-                    <div className="flex items-center gap-2">
-                      <div
-                        className="h-8 w-8 shrink-0 border border-border"
-                        style={{ backgroundColor: editColor }}
-                      />
-                      <Input
-                        type="text"
-                        value={editColor}
-                        onChange={(e) => setEditColor(e.target.value)}
-                        placeholder="#6366f1"
-                        className="h-8 w-32 font-mono text-xs"
-                      />
-                    </div>
-                  </div>
-
-                  {/* Domain whitelist */}
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium">Allowed Domains</label>
-                    <p className="text-xs text-muted-foreground">
-                      Restrict which domains can embed this widget. Leave empty to allow all.
-                    </p>
-                    <div className="flex gap-2">
-                      <Input
-                        type="text"
-                        value={newDomain}
-                        onChange={(e) => setNewDomain(e.target.value)}
-                        onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), handleAddDomain())}
-                        placeholder="example.com"
-                        className="h-8 flex-1 text-xs"
-                      />
+                <div className="flex-1 overflow-y-auto px-6 py-6">
+                  <div className="space-y-6">
+                    {/* Embed snippet */}
+                    <div className="space-y-3">
+                      <label className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                        Embed Snippet
+                      </label>
+                      <div className="rounded border border-border bg-muted/50 p-3">
+                        <code className="block whitespace-pre-wrap break-all text-[11px] leading-relaxed">
+                          {getEmbedSnippet(detailWidget.embedToken, detailWidget.type, editTheme)}
+                        </code>
+                      </div>
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={handleAddDomain}
-                        disabled={!newDomain.trim()}
+                        className="w-full gap-2"
+                        onClick={() =>
+                          handleCopy(
+                            getEmbedSnippet(detailWidget.embedToken, detailWidget.type, editTheme),
+                            `detail-${detailWidget.id}`,
+                          )
+                        }
                       >
-                        Add
+                        {copied === `detail-${detailWidget.id}` ? (
+                          <>
+                            <Check className="h-3.5 w-3.5 text-green-500" />
+                            Copied!
+                          </>
+                        ) : (
+                          <>
+                            <Copy className="h-3.5 w-3.5" />
+                            Copy Snippet
+                          </>
+                        )}
                       </Button>
                     </div>
-                    {editDomains.length > 0 && (
-                      <div className="space-y-1">
-                        {editDomains.map((domain) => (
-                          <div
-                            key={domain}
-                            className="flex items-center justify-between border border-border px-2 py-1 text-xs"
+
+                    <Separator />
+
+                    {/* Changelog source */}
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">Changelog Source</label>
+                      <select
+                        value={editScope}
+                        onChange={(e) => setEditScope(e.target.value)}
+                        className="flex h-9 w-full items-center border border-border bg-background px-3 text-sm outline-none focus:border-ring focus:ring-1 focus:ring-ring/50"
+                      >
+                        <option value="all">All workspace releases</option>
+                        {repositories.length > 0 && (
+                          <optgroup label="Filter by Repository">
+                            {repositories.map((r) => (
+                              <option key={r.id} value={r.id}>
+                                {r.fullName}
+                              </option>
+                            ))}
+                          </optgroup>
+                        )}
+                      </select>
+                    </div>
+
+                    {/* Theme */}
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">Theme</label>
+                      <div className="flex gap-2">
+                        {THEMES.map((t) => (
+                          <button
+                            key={t.value}
+                            type="button"
+                            onClick={() => setEditTheme(t.value)}
+                            className={cn(
+                              "flex items-center gap-2 border px-3 py-2 text-xs transition-colors",
+                              editTheme === t.value
+                                ? "border-primary ring-2 ring-primary/20"
+                                : "border-border hover:border-muted-foreground/30",
+                            )}
                           >
-                            <span>{domain}</span>
-                            <button
-                              type="button"
-                              onClick={() => handleRemoveDomain(domain)}
-                              className="text-muted-foreground hover:text-destructive"
-                            >
-                              <X className="h-3 w-3" />
-                            </button>
-                          </div>
+                            <t.icon className="h-3.5 w-3.5" />
+                            {t.label}
+                          </button>
                         ))}
                       </div>
-                    )}
-                  </div>
-
-                  <Separator />
-
-                  {/* Info */}
-                  <div className="space-y-2 text-xs text-muted-foreground">
-                    <div className="flex justify-between">
-                      <span>Embed Token</span>
-                      <code>{detailWidget.embedToken.slice(0, 16)}...</code>
                     </div>
-                    <div className="flex justify-between">
-                      <span>Created</span>
-                      <span>{new Date(detailWidget.createdAt).toLocaleDateString()}</span>
+
+                    {/* Primary color */}
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">
+                        <Palette className="mr-1.5 inline h-3.5 w-3.5" />
+                        Primary Color
+                      </label>
+                      <div className="flex items-center gap-3">
+                        <div
+                          className="h-9 w-9 shrink-0 border border-border"
+                          style={{ backgroundColor: editColor }}
+                        />
+                        <Input
+                          type="text"
+                          value={editColor}
+                          onChange={(e) => setEditColor(e.target.value)}
+                          placeholder="#6366f1"
+                          className="h-9 w-32 font-mono text-xs"
+                        />
+                      </div>
                     </div>
-                    <div className="flex justify-between">
-                      <span>Type</span>
-                      <span className="capitalize">{detailWidget.type}</span>
+
+                    {/* Domain whitelist */}
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">Allowed Domains</label>
+                      <p className="text-xs text-muted-foreground">
+                        Restrict which domains can embed this widget. Leave empty to allow all.
+                      </p>
+                      <div className="flex gap-2">
+                        <Input
+                          type="text"
+                          value={newDomain}
+                          onChange={(e) => setNewDomain(e.target.value)}
+                          onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), handleAddDomain())}
+                          placeholder="example.com"
+                          className="h-9 flex-1 text-xs"
+                        />
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-9"
+                          onClick={handleAddDomain}
+                          disabled={!newDomain.trim()}
+                        >
+                          Add
+                        </Button>
+                      </div>
+                      {editDomains.length > 0 && (
+                        <div className="space-y-1.5">
+                          {editDomains.map((domain) => (
+                            <div
+                              key={domain}
+                              className="flex items-center justify-between border border-border px-3 py-1.5 text-xs"
+                            >
+                              <span>{domain}</span>
+                              <button
+                                type="button"
+                                onClick={() => handleRemoveDomain(domain)}
+                                className="text-muted-foreground hover:text-destructive"
+                              >
+                                <X className="h-3 w-3" />
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    <Separator />
+
+                    {/* Info */}
+                    <div className="space-y-2 text-xs text-muted-foreground">
+                      <div className="flex justify-between">
+                        <span>Embed Token</span>
+                        <code>{detailWidget.embedToken.slice(0, 16)}...</code>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Created</span>
+                        <span>{new Date(detailWidget.createdAt).toLocaleDateString()}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Type</span>
+                        <span className="capitalize">{detailWidget.type}</span>
+                      </div>
                     </div>
                   </div>
                 </div>
 
                 {/* Footer actions */}
-                <div className="space-y-2 border-t pt-4">
+                <div className="space-y-2 border-t px-6 py-4">
                   <Button
                     className="w-full"
                     onClick={handleSaveWidget}
@@ -892,8 +897,8 @@ export default function WidgetsPage() {
                     )}
                   </Button>
                   <Button
-                    variant="destructive"
-                    className="w-full"
+                    variant="outline"
+                    className="w-full text-destructive hover:bg-destructive hover:text-destructive-foreground"
                     onClick={handleDeleteWidget}
                     disabled={deleteWidget.isPending}
                   >
