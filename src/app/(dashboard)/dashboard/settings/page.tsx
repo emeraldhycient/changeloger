@@ -261,7 +261,8 @@ function BillingSection({ workspace }: { workspace: WorkspaceData | undefined })
 export default function SettingsPage() {
   const { data: user } = useAuth()
   const { data: workspaces = [] } = useWorkspaces()
-  const workspace = workspaces[0]
+  const { currentWorkspaceId } = useWorkspaceStore()
+  const workspace = workspaces.find((w) => w.id === currentWorkspaceId) || workspaces[0]
   const queryClient = useQueryClient()
 
   const [editingName, setEditingName] = useState(false)
