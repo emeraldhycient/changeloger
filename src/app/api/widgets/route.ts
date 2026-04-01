@@ -1,5 +1,5 @@
 import { z } from "zod"
-import { requireAuth } from "@/lib/auth/middleware"
+import { requireAuth, requireWorkspaceRole } from "@/lib/auth/middleware"
 import { prisma } from "@/lib/db/prisma"
 import { getPlanLimits } from "@/lib/billing/limits"
 import { handleApiError, ValidationError, BillingError } from "@/lib/utils/errors"
@@ -7,13 +7,18 @@ import type { WorkspacePlan } from "@prisma/client"
 
 export async function GET(request: Request) {
   try {
-    await requireAuth()
     const { searchParams } = new URL(request.url)
     const workspaceId = searchParams.get("workspaceId")
     const repositoryId = searchParams.get("repositoryId")
 
     if (!workspaceId && !repositoryId) {
       throw new ValidationError("workspaceId or repositoryId is required")
+    }
+
+    if (workspaceId) {
+      await requireWorkspaceRole(workspaceId, "viewer")
+    } else {
+      await requireAuth()
     }
 
     const widgets = await prisma.widget.findMany({

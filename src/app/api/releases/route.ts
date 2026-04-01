@@ -1,15 +1,15 @@
 import { NextRequest } from "next/server"
 import { z } from "zod"
-import { requireAuth } from "@/lib/auth/middleware"
+import { requireAuth, requireWorkspaceRole } from "@/lib/auth/middleware"
 import { findReleasesByWorkspace, createDraftRelease } from "@/lib/db/queries/releases"
 import { handleApiError, ValidationError } from "@/lib/utils/errors"
 
 export async function GET(request: NextRequest) {
   try {
-    await requireAuth()
     const { searchParams } = new URL(request.url)
     const workspaceId = searchParams.get("workspaceId")
     if (!workspaceId) throw new ValidationError("workspaceId is required")
+    await requireWorkspaceRole(workspaceId, "viewer")
     const status = searchParams.get("status") as "draft" | "published" | "archived" | undefined
     const releases = await findReleasesByWorkspace(workspaceId, status || undefined)
     return Response.json(releases)

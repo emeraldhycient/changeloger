@@ -34,6 +34,8 @@ export function useLogout() {
     },
     onSuccess: () => {
       queryClient.setQueryData(["auth", "me"], null)
+      // Clear persisted workspace to prevent data leaking to next user
+      localStorage.removeItem("changeloger_workspace_id")
       window.location.href = "/"
     },
   })
