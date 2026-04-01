@@ -581,47 +581,46 @@ export default function WidgetsPage() {
               </DialogDescription>
             </DialogHeader>
             {snippetWidget && (
-              <div className="space-y-3">
-                <div className="relative">
-                  <pre className="overflow-x-auto border border-border bg-muted/50 p-3 text-xs leading-relaxed">
+              <div className="space-y-4">
+                <div className="rounded border border-border bg-muted/50 p-3">
+                  <code className="block whitespace-pre-wrap break-all text-xs leading-relaxed">
                     {getEmbedSnippet(
                       snippetWidget.embedToken,
                       snippetWidget.type,
                       (snippetWidget.config?.theme as string) || "auto",
                     )}
-                  </pre>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="absolute right-1 top-1 gap-1.5"
-                    onClick={() =>
-                      handleCopy(
-                        getEmbedSnippet(
-                          snippetWidget.embedToken,
-                          snippetWidget.type,
-                          (snippetWidget.config?.theme as string) || "auto",
-                        ),
-                        `snippet-${snippetWidget.id}`,
-                      )
-                    }
-                  >
-                    {copied === `snippet-${snippetWidget.id}` ? (
-                      <>
-                        <Check className="h-3.5 w-3.5 text-green-500" />
-                        Copied!
-                      </>
-                    ) : (
-                      <>
-                        <Copy className="h-3.5 w-3.5" />
-                        Copy
-                      </>
-                    )}
-                  </Button>
+                  </code>
                 </div>
+                <Button
+                  className="w-full gap-2"
+                  variant="outline"
+                  onClick={() =>
+                    handleCopy(
+                      getEmbedSnippet(
+                        snippetWidget.embedToken,
+                        snippetWidget.type,
+                        (snippetWidget.config?.theme as string) || "auto",
+                      ),
+                      `snippet-${snippetWidget.id}`,
+                    )
+                  }
+                >
+                  {copied === `snippet-${snippetWidget.id}` ? (
+                    <>
+                      <Check className="h-4 w-4 text-green-500" />
+                      Copied to clipboard!
+                    </>
+                  ) : (
+                    <>
+                      <Copy className="h-4 w-4" />
+                      Copy Snippet
+                    </>
+                  )}
+                </Button>
               </div>
             )}
             <DialogFooter>
-              <Button variant="outline" onClick={() => setSnippetWidget(null)}>
+              <Button variant="ghost" onClick={() => setSnippetWidget(null)}>
                 Done
               </Button>
             </DialogFooter>
