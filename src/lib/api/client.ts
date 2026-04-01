@@ -1,4 +1,5 @@
 import axios from "axios"
+import { useBillingStore } from "@/stores/billing-store"
 
 const apiClient = axios.create({
   baseURL: process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000",
@@ -49,10 +50,9 @@ apiClient.interceptors.response.use(
       }
     }
 
-    // Handle 402 (billing limit)
+    // Handle 402 (billing limit) — open the upgrade modal
     if (error.response?.status === 402 && typeof window !== "undefined") {
-      // Could show an upgrade modal here
-      console.warn("Plan limit reached:", error.response.data)
+      useBillingStore.getState().openUpgradeModal(error.response.data?.error)
     }
 
     return Promise.reject(error)

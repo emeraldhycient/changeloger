@@ -18,9 +18,244 @@ import {
 import { useAuth } from "@/hooks/use-auth"
 import { useWorkspaces } from "@/hooks/use-workspaces"
 import { apiClient } from "@/lib/api/client"
-import { GitBranch, CreditCard, AlertTriangle } from "lucide-react"
+import {
+  GitBranch,
+  CreditCard,
+  AlertTriangle,
+  Check,
+  X,
+  Sparkles,
+  Zap,
+  Crown,
+  Loader2,
+  Clock,
+} from "lucide-react"
+import { cn } from "@/lib/utils"
+import { useWorkspaceStore } from "@/stores/workspace-store"
 
 const GITHUB_APP_SLUG = process.env.NEXT_PUBLIC_GITHUB_APP_SLUG || "changeloger"
+
+// ─── Plan data for billing section ─────────────────────────────────────────
+
+const BILLING_PLANS = [
+  {
+    id: "free" as const,
+    name: "Free",
+    icon: Sparkles,
+    monthlyPrice: 0,
+    annualPrice: 0,
+    highlights: ["1 repo", "1 member", "50 AI gen/mo", "Page widget"],
+  },
+  {
+    id: "pro" as const,
+    name: "Pro",
+    icon: Zap,
+    popular: true,
+    monthlyPrice: 15,
+    annualPrice: 12,
+    highlights: ["5 repos", "3 members", "500 AI gen/mo", "All widgets", "Analytics"],
+  },
+  {
+    id: "team" as const,
+    name: "Team",
+    icon: Crown,
+    monthlyPrice: 40,
+    annualPrice: 32,
+    highlights: ["Unlimited repos", "Unlimited members", "2K AI gen/mo", "Audit log"],
+  },
+]
+
+interface WorkspaceData {
+  id: string
+  name: string
+  slug: string
+  plan: string
+  polarCustomerId: string | null
+  polarSubscriptionId: string | null
+  trialEndsAt: string | null
+}
+
+function BillingSection({ workspace }: { workspace: WorkspaceData | undefined }) {
+  const [annual, setAnnual] = useState(false)
+  const queryClient = useQueryClient()
+  const currentPlan = workspace?.plan || "free"
+
+  const checkout = useMutation({
+    mutationFn: async (plan: "pro" | "team") => {
+      if (!workspace) throw new Error("No workspace")
+      const { data } = await apiClient.post("/api/billing/checkout", {
+        workspaceId: workspace.id,
+        plan,
+        interval: annual ? "annual" : "monthly",
+      })
+      return data as { url?: string; success?: boolean; mock?: boolean }
+    },
+    onSuccess: (data) => {
+      if (data.url) {
+        window.location.href = data.url
+      } else if (data.mock) {
+        queryClient.invalidateQueries({ queryKey: ["workspaces"] })
+      }
+    },
+  })
+
+  // Trial countdown
+  const trialDaysLeft = workspace?.trialEndsAt
+    ? Math.max(0, Math.ceil((new Date(workspace.trialEndsAt).getTime() - Date.now()) / 86400000))
+    : null
+
+  return (
+    <Card id="billing">
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <CreditCard className="h-5 w-5" />
+          Billing
+        </CardTitle>
+        <CardDescription>Manage your subscription and plan</CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-6">
+        {/* Trial banner */}
+        {trialDaysLeft !== null && trialDaysLeft > 0 && (
+          <div className="flex items-center gap-3 rounded border border-primary/20 bg-primary/5 px-4 py-3">
+            <Clock className="h-4 w-4 shrink-0 text-primary" />
+            <div>
+              <p className="text-sm font-medium">Pro trial active</p>
+              <p className="text-xs text-muted-foreground">
+                {trialDaysLeft} {trialDaysLeft === 1 ? "day" : "days"} remaining. Upgrade to keep Pro features.
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* Current plan */}
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-sm font-medium">Current Plan</p>
+            <p className="text-lg font-bold capitalize">{currentPlan}</p>
+          </div>
+          {workspace?.polarCustomerId && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={async () => {
+                const { data } = await apiClient.post("/api/billing/portal", {
+                  workspaceId: workspace.id,
+                })
+                window.open(data.url, "_blank")
+              }}
+            >
+              Manage Subscription
+            </Button>
+          )}
+        </div>
+
+        <Separator />
+
+        {/* Billing toggle */}
+        <div className="flex items-center justify-center gap-3">
+          <span className={cn("text-sm", !annual ? "font-medium" : "text-muted-foreground")}>
+            Monthly
+          </span>
+          <button
+            type="button"
+            onClick={() => setAnnual(!annual)}
+            className={cn(
+              "relative h-6 w-11 rounded-full transition-colors",
+              annual ? "bg-primary" : "bg-muted",
+            )}
+          >
+            <span
+              className={cn(
+                "absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform",
+                annual ? "translate-x-[22px]" : "translate-x-0.5",
+              )}
+            />
+          </button>
+          <span className={cn("text-sm", annual ? "font-medium" : "text-muted-foreground")}>
+            Annual
+          </span>
+          {annual && (
+            <Badge variant="secondary" className="text-[10px] text-emerald-600 dark:text-emerald-400">
+              Save 20%
+            </Badge>
+          )}
+        </div>
+
+        {/* Plan cards */}
+        <div className="grid grid-cols-3 gap-3">
+          {BILLING_PLANS.map((plan) => {
+            const isCurrent = plan.id === currentPlan
+            const isUpgrade =
+              (currentPlan === "free" && plan.id !== "free") ||
+              (currentPlan === "pro" && plan.id === "team")
+            const price = annual ? plan.annualPrice : plan.monthlyPrice
+
+            return (
+              <div
+                key={plan.id}
+                className={cn(
+                  "flex flex-col rounded border p-4",
+                  isCurrent
+                    ? "border-emerald-500/40 bg-emerald-500/5"
+                    : plan.popular
+                      ? "border-primary/40"
+                      : "border-border",
+                )}
+              >
+                <div className="mb-2 flex items-center gap-2">
+                  <plan.icon className="h-4 w-4 text-primary" />
+                  <span className="text-sm font-semibold">{plan.name}</span>
+                  {isCurrent && (
+                    <Badge variant="outline" className="ml-auto border-emerald-500/30 text-[9px] text-emerald-600 dark:text-emerald-400">
+                      Current
+                    </Badge>
+                  )}
+                </div>
+
+                <div className="mb-3">
+                  <span className="text-xl font-bold">${price}</span>
+                  <span className="text-xs text-muted-foreground">/mo</span>
+                </div>
+
+                <ul className="mb-4 flex-1 space-y-1">
+                  {plan.highlights.map((h) => (
+                    <li key={h} className="flex items-center gap-1.5 text-xs">
+                      <Check className="h-3 w-3 shrink-0 text-emerald-500" />
+                      {h}
+                    </li>
+                  ))}
+                </ul>
+
+                {isCurrent ? (
+                  <Button variant="outline" size="sm" disabled className="w-full text-xs">
+                    Current Plan
+                  </Button>
+                ) : isUpgrade ? (
+                  <Button
+                    size="sm"
+                    className="w-full text-xs"
+                    onClick={() => checkout.mutate(plan.id as "pro" | "team")}
+                    disabled={checkout.isPending}
+                  >
+                    {checkout.isPending ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      `Upgrade to ${plan.name}`
+                    )}
+                  </Button>
+                ) : (
+                  <Button variant="outline" size="sm" disabled className="w-full text-xs">
+                    Downgrade
+                  </Button>
+                )}
+              </div>
+            )
+          })}
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
 
 export default function SettingsPage() {
   const { data: user } = useAuth()
@@ -212,36 +447,7 @@ export default function SettingsPage() {
       </Card>
 
       {/* Billing */}
-      <Card id="billing">
-        <CardHeader>
-          <CardTitle>Billing</CardTitle>
-          <CardDescription>Manage your subscription and payment method</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium">Current Plan</p>
-              <p className="text-sm text-muted-foreground capitalize">{workspace?.plan || "free"}</p>
-            </div>
-            <Button
-              variant="default"
-              size="sm"
-              onClick={async () => {
-                if (workspace?.polarCustomerId) {
-                  const { data } = await apiClient.post("/api/billing/portal", {
-                    workspaceId: workspace.id,
-                  })
-                  window.open(data.url, "_blank")
-                } else {
-                  window.location.href = "/pricing"
-                }
-              }}
-            >
-              {workspace?.polarCustomerId ? "Manage Subscription" : "Upgrade Plan"}
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+      <BillingSection workspace={workspace} />
 
       {/* Danger Zone */}
       <Card className="border-destructive/30">

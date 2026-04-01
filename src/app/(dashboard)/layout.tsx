@@ -3,6 +3,7 @@
 import { useState } from "react"
 import { Sidebar, MobileSidebar } from "@/components/dashboard/sidebar"
 import { Topbar } from "@/components/dashboard/topbar"
+import { UpgradeModal } from "@/components/billing/upgrade-modal"
 import {
   Sheet,
   SheetContent,
@@ -40,6 +41,9 @@ export default function DashboardLayout({
         <Topbar onMobileMenuToggle={() => setMobileOpen(true)} />
         <main className="flex-1 overflow-y-auto p-6">{children}</main>
       </div>
+
+      {/* Global upgrade modal — triggered by 402 errors */}
+      <UpgradeModal />
     </div>
   )
 }
