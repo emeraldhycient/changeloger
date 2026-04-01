@@ -102,13 +102,14 @@ export function UpgradeModal() {
       })
       return data as { url?: string; success?: boolean; mock?: boolean; plan?: string }
     },
-    onSuccess: (data) => {
+    onSuccess: async (data) => {
       if (data.url) {
         // Polar checkout — redirect
         window.location.href = data.url
-      } else if (data.mock) {
-        // Mock mode — plan updated directly
-        queryClient.invalidateQueries({ queryKey: ["workspaces"] })
+      } else {
+        // Plan updated (mock or free downgrade) — refetch all workspace-dependent data
+        await queryClient.invalidateQueries({ queryKey: ["workspaces"] })
+        await queryClient.refetchQueries({ queryKey: ["workspaces"] })
         closeUpgradeModal()
       }
     },
