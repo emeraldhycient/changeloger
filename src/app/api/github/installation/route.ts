@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { requireAuth } from "@/lib/auth/middleware"
 import { prisma } from "@/lib/db/prisma"
-import { syncInstallationRepos } from "@/lib/github/installation"
 import { handleApiError } from "@/lib/utils/errors"
 
 export async function GET(request: NextRequest) {
@@ -10,15 +9,21 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const installationId = searchParams.get("installation_id")
     const setupAction = searchParams.get("setup_action")
-    const stateWorkspaceId = searchParams.get("state") // workspace ID from the connect button
+    const stateWorkspaceId = searchParams.get("state")
 
-    if (!installationId || setupAction !== "install") {
+    if (!installationId || !setupAction) {
+      return NextResponse.redirect(new URL("/dashboard/repositories?error=invalid_callback", request.url))
+    }
+
+    // GitHub sends setup_action=install (first time) or setup_action=update (modify repos)
+    // We handle both the same way
+    if (setupAction !== "install" && setupAction !== "update") {
       return NextResponse.redirect(new URL("/dashboard/repositories?error=invalid_callback", request.url))
     }
 
     let workspaceId: string | null = null
 
-    // 1. Try workspace from state param (passed via connect button)
+    // 1. Try workspace from state param
     if (stateWorkspaceId) {
       const membership = await prisma.workspaceMember.findUnique({
         where: {
@@ -42,31 +47,99 @@ export async function GET(request: NextRequest) {
       return NextResponse.redirect(new URL("/dashboard/repositories?error=no_workspace", request.url))
     }
 
-    // Create or update installation record
     const numericId = parseInt(installationId, 10)
+
+    // Get the user's GitHub OAuth token for fallback repo fetching
+    const oauthAccount = await prisma.oAuthAccount.findFirst({
+      where: { userId: session.userId, provider: "github" },
+    })
+
+    // Create or update installation record
     await prisma.githubInstallation.upsert({
       where: { installationId: numericId },
       update: { workspaceId },
       create: {
         installationId: numericId,
         workspaceId,
-        accountLogin: "pending-sync",
+        accountLogin: oauthAccount ? "syncing" : "pending-sync",
         accountType: "User",
       },
     })
 
-    // Sync repos from GitHub
-    try {
-      await syncInstallationRepos(numericId, workspaceId)
-    } catch (syncError) {
-      console.error("Repo sync error:", syncError)
-      // Still redirect — repos can be synced later
-      return NextResponse.redirect(
-        new URL("/dashboard/repositories?setup=complete&sync_warning=true", request.url),
-      )
+    // Try syncing repos
+    let syncSuccess = false
+
+    // Method 1: Use GitHub App installation token (requires APP_ID + PRIVATE_KEY)
+    if (process.env.GITHUB_APP_ID && process.env.GITHUB_APP_PRIVATE_KEY) {
+      try {
+        const { syncInstallationRepos } = await import("@/lib/github/installation")
+        await syncInstallationRepos(numericId, workspaceId)
+        syncSuccess = true
+      } catch (err) {
+        console.error("App-based sync failed:", err)
+      }
     }
 
-    return NextResponse.redirect(new URL("/dashboard/repositories?setup=complete", request.url))
+    // Method 2: Use user's OAuth token to fetch repos (fallback)
+    if (!syncSuccess && oauthAccount?.accessToken) {
+      try {
+        const { createGitHubClient } = await import("@/lib/github/client")
+        const client = createGitHubClient(oauthAccount.accessToken)
+        const repos = await client.getRepos()
+
+        const installation = await prisma.githubInstallation.findUnique({
+          where: { installationId: numericId },
+        })
+
+        if (installation) {
+          // Update account login from the GitHub user
+          const userLogin = repos[0]?.owner?.login
+          if (userLogin) {
+            await prisma.githubInstallation.update({
+              where: { installationId: numericId },
+              data: { accountLogin: userLogin },
+            })
+          }
+
+          for (const repo of repos) {
+            await prisma.repository.upsert({
+              where: {
+                workspaceId_githubRepoId: {
+                  workspaceId,
+                  githubRepoId: repo.id,
+                },
+              },
+              update: {
+                name: repo.name,
+                fullName: repo.full_name,
+                defaultBranch: repo.default_branch,
+                language: repo.language,
+              },
+              create: {
+                workspaceId,
+                githubInstallationId: installation.id,
+                githubRepoId: repo.id,
+                name: repo.name,
+                fullName: repo.full_name,
+                defaultBranch: repo.default_branch,
+                language: repo.language,
+              },
+            })
+          }
+          syncSuccess = true
+        }
+      } catch (err) {
+        console.error("OAuth-based sync failed:", err)
+      }
+    }
+
+    if (syncSuccess) {
+      return NextResponse.redirect(new URL("/dashboard/repositories?setup=complete", request.url))
+    }
+
+    return NextResponse.redirect(
+      new URL("/dashboard/repositories?setup=complete&sync_warning=true", request.url),
+    )
   } catch (error) {
     console.error("Installation callback error:", error)
     return NextResponse.redirect(

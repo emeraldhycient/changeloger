@@ -2,8 +2,9 @@
 
 import { Suspense } from "react"
 import { useSearchParams } from "next/navigation"
-import { useQuery } from "@tanstack/react-query"
-import { CheckCircle2, AlertCircle, AlertTriangle } from "lucide-react"
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
+import { CheckCircle2, AlertCircle, AlertTriangle, RefreshCw, Loader2 } from "lucide-react"
+import { Button } from "@/components/ui/button"
 import { apiClient } from "@/lib/api/client"
 import { useWorkspaceStore } from "@/stores/workspace-store"
 import { GitHubConnectButton } from "@/components/dashboard/github-connect-button"
@@ -17,6 +18,7 @@ const ERROR_MESSAGES: Record<string, string> = {
 
 function RepositoriesContent() {
   const workspaceId = useWorkspaceStore((s) => s.currentWorkspaceId)
+  const queryClient = useQueryClient()
   const searchParams = useSearchParams()
 
   const setup = searchParams.get("setup")
@@ -33,6 +35,16 @@ function RepositoriesContent() {
     enabled: !!workspaceId,
   })
 
+  const syncRepos = useMutation({
+    mutationFn: async () => {
+      const { data } = await apiClient.post("/api/github/sync", { workspaceId })
+      return data as { synced: number; method: string }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["repositories", workspaceId] })
+    },
+  })
+
   return (
     <div className="mx-auto max-w-5xl">
       <div className="mb-8 flex items-center justify-between">
@@ -42,7 +54,24 @@ function RepositoriesContent() {
             Manage your connected GitHub repositories
           </p>
         </div>
-        <GitHubConnectButton />
+        <div className="flex items-center gap-2">
+          {workspaceId && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => syncRepos.mutate()}
+              disabled={syncRepos.isPending}
+            >
+              {syncRepos.isPending ? (
+                <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <RefreshCw className="mr-1.5 h-3.5 w-3.5" />
+              )}
+              {syncRepos.isPending ? "Syncing..." : "Sync Repos"}
+            </Button>
+          )}
+          <GitHubConnectButton />
+        </div>
       </div>
 
       {/* Success banner */}
