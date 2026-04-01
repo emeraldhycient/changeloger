@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Separator } from "@/components/ui/separator"
 import { Badge } from "@/components/ui/badge"
+import { Switch } from "@/components/ui/switch"
 import {
   Dialog,
   DialogContent,
@@ -81,7 +82,7 @@ function BillingSection({ workspace }: { workspace: WorkspaceData | undefined })
   const currentPlan = workspace?.plan || "free"
 
   const checkout = useMutation({
-    mutationFn: async (plan: "pro" | "team") => {
+    mutationFn: async (plan: "free" | "pro" | "team") => {
       if (!workspace) throw new Error("No workspace")
       const { data } = await apiClient.post("/api/billing/checkout", {
         workspaceId: workspace.id,
@@ -93,7 +94,7 @@ function BillingSection({ workspace }: { workspace: WorkspaceData | undefined })
     onSuccess: (data) => {
       if (data.url) {
         window.location.href = data.url
-      } else if (data.mock) {
+      } else {
         queryClient.invalidateQueries({ queryKey: ["workspaces"] })
       }
     },
@@ -156,21 +157,7 @@ function BillingSection({ workspace }: { workspace: WorkspaceData | undefined })
           <span className={cn("text-sm", !annual ? "font-medium" : "text-muted-foreground")}>
             Monthly
           </span>
-          <button
-            type="button"
-            onClick={() => setAnnual(!annual)}
-            className={cn(
-              "relative h-6 w-11 rounded-full transition-colors",
-              annual ? "bg-primary" : "bg-muted",
-            )}
-          >
-            <span
-              className={cn(
-                "absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform",
-                annual ? "translate-x-[22px]" : "translate-x-0.5",
-              )}
-            />
-          </button>
+          <Switch checked={annual} onCheckedChange={setAnnual} />
           <span className={cn("text-sm", annual ? "font-medium" : "text-muted-foreground")}>
             Annual
           </span>
@@ -217,9 +204,9 @@ function BillingSection({ workspace }: { workspace: WorkspaceData | undefined })
                   <span className="text-xs text-muted-foreground">/mo</span>
                 </div>
 
-                <ul className="mb-4 flex-1 space-y-1">
+                <ul className="mb-4 flex-1 space-y-1.5">
                   {plan.highlights.map((h) => (
-                    <li key={h} className="flex items-center gap-1.5 text-xs">
+                    <li key={h} className="flex items-center gap-2 text-xs">
                       <Check className="h-3 w-3 shrink-0 text-emerald-500" />
                       {h}
                     </li>
@@ -234,7 +221,7 @@ function BillingSection({ workspace }: { workspace: WorkspaceData | undefined })
                   <Button
                     size="sm"
                     className="w-full text-xs"
-                    onClick={() => checkout.mutate(plan.id as "pro" | "team")}
+                    onClick={() => checkout.mutate(plan.id as "free" | "pro" | "team")}
                     disabled={checkout.isPending}
                   >
                     {checkout.isPending ? (
@@ -244,8 +231,22 @@ function BillingSection({ workspace }: { workspace: WorkspaceData | undefined })
                     )}
                   </Button>
                 ) : (
-                  <Button variant="outline" size="sm" disabled className="w-full text-xs">
-                    Downgrade
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="w-full text-xs"
+                    onClick={() => {
+                      if (confirm(`Downgrade to ${plan.name}? You'll lose access to features above this plan's limits.`)) {
+                        checkout.mutate(plan.id as "free" | "pro" | "team")
+                      }
+                    }}
+                    disabled={checkout.isPending}
+                  >
+                    {checkout.isPending ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      `Switch to ${plan.name}`
+                    )}
                   </Button>
                 )}
               </div>

@@ -15,7 +15,7 @@ const PRICE_IDS: Record<string, string | undefined> = {
 
 const checkoutSchema = z.object({
   workspaceId: z.string().uuid(),
-  plan: z.enum(["pro", "team"]),
+  plan: z.enum(["free", "pro", "team"]),
   interval: z.enum(["monthly", "annual"]).default("monthly"),
 })
 
@@ -31,6 +31,15 @@ export async function POST(request: Request) {
     // Verify workspace exists
     const workspace = await prisma.workspace.findUnique({ where: { id: workspaceId } })
     if (!workspace) throw new ValidationError("Workspace not found")
+
+    // Downgrade to free — no payment needed
+    if (plan === "free") {
+      await prisma.workspace.update({
+        where: { id: workspaceId },
+        data: { plan: "free", polarSubscriptionId: null },
+      })
+      return Response.json({ success: true, mock: false, plan: "free" })
+    }
 
     // Check if Polar is configured
     const priceId = PRICE_IDS[`${plan}-${interval}`]
