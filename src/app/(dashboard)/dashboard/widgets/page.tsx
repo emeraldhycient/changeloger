@@ -469,14 +469,12 @@ export default function WidgetsPage() {
                         <TooltipTrigger asChild>
                           <button
                             type="button"
-                            disabled={locked}
                             onClick={() => setSelectedType(wt.type)}
                             className={cn(
                               "relative flex flex-col items-center gap-2.5 border p-4 text-center transition-colors",
-                              selectedType === wt.type && !locked
+                              selectedType === wt.type
                                 ? "border-primary ring-2 ring-primary/20"
                                 : "border-border hover:border-muted-foreground/30",
-                              locked && "cursor-not-allowed opacity-50",
                             )}
                           >
                             {locked && (
@@ -487,7 +485,7 @@ export default function WidgetsPage() {
                           </button>
                         </TooltipTrigger>
                         {locked && (
-                          <TooltipContent>Upgrade to Pro</TooltipContent>
+                          <TooltipContent>Requires Pro plan — upgrade will be prompted on create</TooltipContent>
                         )}
                       </Tooltip>
                     )
