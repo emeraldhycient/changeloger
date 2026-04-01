@@ -18,9 +18,9 @@ export default function DashboardLayout({
   const [mobileOpen, setMobileOpen] = useState(false)
 
   return (
-    <div className="flex min-h-screen">
-      {/* Desktop Sidebar */}
-      <div className="hidden md:block">
+    <div className="flex h-screen overflow-hidden">
+      {/* Desktop Sidebar — fixed height, never scrolls with content */}
+      <div className="hidden h-full shrink-0 md:block">
         <Sidebar
           collapsed={sidebarCollapsed}
           onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
@@ -36,9 +36,9 @@ export default function DashboardLayout({
       </Sheet>
 
       {/* Main Content Area */}
-      <div className="flex flex-1 flex-col">
+      <div className="flex h-full flex-1 flex-col overflow-hidden">
         <Topbar onMobileMenuToggle={() => setMobileOpen(true)} />
-        <main className="flex-1 overflow-auto p-6">{children}</main>
+        <main className="flex-1 overflow-y-auto p-6">{children}</main>
       </div>
     </div>
   )

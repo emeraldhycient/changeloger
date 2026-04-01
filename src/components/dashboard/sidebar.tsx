@@ -111,7 +111,7 @@ export function Sidebar({ collapsed = false, onToggleCollapse, className }: Side
   return (
     <aside
       className={cn(
-        "flex h-screen flex-col border-r border-sidebar-border bg-sidebar transition-all duration-200",
+        "flex h-full flex-col border-r border-sidebar-border bg-sidebar transition-all duration-200",
         collapsed ? "w-16" : "w-64",
         className,
       )}
