@@ -24,8 +24,10 @@
   if (window.__changeloger_loaded) return;
   window.__changeloger_loaded = true;
 
-  // DOM-based guard: if we already rendered, don't re-init on HMR
+  // DOM-based guard: if we already rendered, don't re-init on HMR/reload
   if (document.querySelector("[data-changeloger-rendered]")) return;
+  // Also check if widget root elements already exist in the DOM
+  if (document.querySelector(".clgr-root")) return;
 
   // ─── Constants ────────────────────────────────────────────────────────────
   var PREFIX = "clgr";
@@ -292,17 +294,23 @@
       flushing = true;
       var batch = queue.splice(0, queue.length);
 
-      fetch(API_BASE + "/api/widgets/" + token + "/events", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ events: batch }),
-        keepalive: true
-      })
-      .catch(function () {
-        // On failure put events back for retry
-        queue.unshift.apply(queue, batch);
-      })
-      .finally(function () { flushing = false; });
+      try {
+        fetch(API_BASE + "/api/widgets/" + token + "/events", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ events: batch }),
+          keepalive: true
+        })
+        .then(function () { flushing = false; })
+        .catch(function () {
+          // On failure put events back for retry (max 50 to prevent memory leak)
+          if (queue.length < 50) queue.unshift.apply(queue, batch);
+          flushing = false;
+        });
+      } catch (e) {
+        // Fetch itself can throw in some edge cases
+        flushing = false;
+      }
     }
 
     var visHandler = null;
@@ -631,6 +639,9 @@
           widgetType = data.type;
         }
 
+        // Mark as rendered BEFORE DOM mutations to prevent re-init race
+        scriptEl.setAttribute("data-changeloger-rendered", "true");
+
         switch (widgetType) {
           case "modal":
             initModalWidget(cfg);
@@ -643,9 +654,6 @@
             initPageWidget(cfg);
             break;
         }
-
-        // Mark as rendered so DOM guard prevents re-init on HMR reloads
-        scriptEl.setAttribute("data-changeloger-rendered", "true");
       })
       .catch(function (err) {
         console.warn("[Changeloger] Failed to load changelog:", err.message);
