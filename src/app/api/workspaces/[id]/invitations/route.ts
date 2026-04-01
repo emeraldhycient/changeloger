@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server"
 import { z } from "zod"
 import { requireWorkspaceRole } from "@/lib/auth/middleware"
+import { enforceMemberLimit } from "@/lib/middleware/plan-enforcement"
 import { prisma } from "@/lib/db/prisma"
 import { handleApiError, ValidationError } from "@/lib/utils/errors"
 
@@ -35,6 +36,7 @@ export async function POST(
   try {
     const { id } = await params
     const { session } = await requireWorkspaceRole(id, "admin")
+    await enforceMemberLimit(id)
 
     const body = await request.json()
     const parsed = inviteSchema.safeParse(body)
