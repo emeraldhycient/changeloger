@@ -21,6 +21,7 @@ import {
   Zap,
   Crown,
 } from "lucide-react"
+import { Switch } from "@/components/ui/switch"
 import { cn } from "@/lib/utils"
 import { apiClient } from "@/lib/api/client"
 import { useBillingStore } from "@/stores/billing-store"
@@ -146,41 +147,13 @@ export function UpgradeModal() {
 
         {/* Billing toggle */}
         <div className="flex items-center justify-center gap-3 py-1">
-          <button
-            type="button"
-            onClick={() => setAnnual(false)}
-            className={cn(
-              "text-sm font-medium transition-colors",
-              !annual ? "text-foreground" : "text-muted-foreground",
-            )}
-          >
+          <span className={cn("text-sm font-medium transition-colors", !annual ? "text-foreground" : "text-muted-foreground")}>
             Monthly
-          </button>
-          <button
-            type="button"
-            onClick={() => setAnnual(!annual)}
-            className={cn(
-              "relative h-6 w-11 rounded-full transition-colors",
-              annual ? "bg-primary" : "bg-muted",
-            )}
-          >
-            <span
-              className={cn(
-                "absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform",
-                annual ? "translate-x-[22px]" : "translate-x-0.5",
-              )}
-            />
-          </button>
-          <button
-            type="button"
-            onClick={() => setAnnual(true)}
-            className={cn(
-              "text-sm font-medium transition-colors",
-              annual ? "text-foreground" : "text-muted-foreground",
-            )}
-          >
+          </span>
+          <Switch checked={annual} onCheckedChange={setAnnual} />
+          <span className={cn("text-sm font-medium transition-colors", annual ? "text-foreground" : "text-muted-foreground")}>
             Annual
-          </button>
+          </span>
           {annual && (
             <Badge variant="secondary" className="text-[10px] text-emerald-600 dark:text-emerald-400">
               Save 20%
