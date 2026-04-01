@@ -164,27 +164,54 @@ export async function exchangeGitHubCode(code: string): Promise<OAuthUserInfo> {
 
   const tokens = await tokenRes.json()
 
+  // Check for token exchange errors
+  if (tokens.error || !tokens.access_token) {
+    console.error("GitHub token exchange failed:", tokens)
+    throw new Error(`GitHub token exchange failed: ${tokens.error_description || tokens.error || "no access_token returned"}`)
+  }
+
+  const authHeader = { Authorization: `Bearer ${tokens.access_token}` }
+
   // Fetch user profile
   const userRes = await fetch("https://api.github.com/user", {
-    headers: { Authorization: `Bearer ${tokens.access_token}` },
+    headers: authHeader,
   })
+  if (!userRes.ok) {
+    console.error("GitHub user fetch failed:", userRes.status)
+    throw new Error(`Failed to fetch GitHub profile: ${userRes.status}`)
+  }
   const profile = await userRes.json()
 
-  // Fetch primary email
-  let email = profile.email
-  try {
-    const emailsRes = await fetch("https://api.github.com/user/emails", {
-      headers: { Authorization: `Bearer ${tokens.access_token}` },
-    })
-    const emails = await emailsRes.json()
-    if (Array.isArray(emails)) {
-      const primaryEmail = emails.find(
-        (e: { primary: boolean; verified: boolean }) => e.primary && e.verified,
-      )
-      if (primaryEmail?.email) email = primaryEmail.email
+  // Fetch primary email — try multiple sources
+  let email = profile.email || null
+
+  if (!email) {
+    try {
+      const emailsRes = await fetch("https://api.github.com/user/emails", {
+        headers: authHeader,
+      })
+      if (emailsRes.ok) {
+        const emails = await emailsRes.json()
+        if (Array.isArray(emails)) {
+          // Try verified primary email first
+          const primary = emails.find(
+            (e: { primary: boolean; verified: boolean; email: string }) => e.primary && e.verified,
+          )
+          // Fall back to any verified email
+          const verified = emails.find(
+            (e: { verified: boolean; email: string }) => e.verified,
+          )
+          email = primary?.email || verified?.email || null
+        }
+      }
+    } catch {
+      // emails endpoint failed — continue with what we have
     }
-  } catch {
-    // Fall back to profile email if emails endpoint fails
+  }
+
+  // Last resort: use the noreply email GitHub generates
+  if (!email && profile.login) {
+    email = `${profile.id}+${profile.login}@users.noreply.github.com`
   }
 
   if (!email) {
