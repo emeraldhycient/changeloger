@@ -18,7 +18,7 @@ export async function GET(request: NextRequest) {
     // Get all widgets for this workspace
     const widgets = await prisma.widget.findMany({
       where: { workspaceId },
-      select: { id: true },
+      select: { id: true, type: true, embedToken: true, createdAt: true },
     })
     const widgetIds = widgets.map((w) => w.id)
 
@@ -30,86 +30,149 @@ export async function GET(request: NextRequest) {
         avgReadDepth: 0,
         dailyData: [],
         topEntries: [],
+        trafficSources: [],
+        scrollDepthDistribution: { 25: 0, 50: 0, 75: 0, 100: 0 },
+        widgetBreakdown: [],
         recentEvents24h: 0,
+        totalEvents: 0,
       })
     }
 
-    // Get daily aggregated data
-    const dailyData = await prisma.analyticsDaily.findMany({
-      where: { widgetId: { in: widgetIds }, date: { gte: since } },
-      orderBy: { date: "asc" },
+    // Query ALL raw events in the time range
+    const events = await prisma.analyticsEvent.findMany({
+      where: {
+        widgetId: { in: widgetIds },
+        timestamp: { gte: since }
+      },
+      orderBy: { timestamp: "asc" },
     })
 
-    // Aggregate totals
-    const totalViews = dailyData.reduce((s, d) => s + d.pageViews, 0)
-    const totalVisitors = dailyData.reduce((s, d) => s + d.uniqueVisitors, 0)
+    // ── Totals ──────────────────────────────────────────────
+    const pageViews = events.filter((e) => e.eventType === "page_view")
+    const entryClicks = events.filter((e) => e.eventType === "entry_click")
+    const scrollDepths = events.filter((e) => e.eventType === "scroll_depth")
+    const uniqueVisitors = new Set(events.map((e) => e.visitorHash)).size
 
-    // Aggregate entry clicks across all days
-    const clickMap: Record<string, number> = {}
-    for (const d of dailyData) {
-      const clicks = d.entryClicks as Record<string, number> | null
-      if (clicks) {
-        for (const [entryId, count] of Object.entries(clicks)) {
-          clickMap[entryId] = (clickMap[entryId] || 0) + count
-        }
+    const totalViews = pageViews.length
+    const totalClicks = entryClicks.length
+    const totalEvents = events.length
+
+    // ── Average Read Depth ──────────────────────────────────
+    const avgReadDepth = scrollDepths.length > 0
+      ? Math.round(
+          scrollDepths.reduce((sum, e) => {
+            const meta = e.metadata as Record<string, number> | null
+            return sum + (meta?.depth || 0)
+          }, 0) / scrollDepths.length
+        )
+      : 0
+
+    // ── Scroll Depth Distribution ───────────────────────────
+    const scrollDepthDistribution = { 25: 0, 50: 0, 75: 0, 100: 0 }
+    for (const e of scrollDepths) {
+      const meta = e.metadata as Record<string, number> | null
+      const depth = meta?.depth
+      if (depth && depth in scrollDepthDistribution) {
+        scrollDepthDistribution[depth as keyof typeof scrollDepthDistribution]++
       }
     }
-    const totalClicks = Object.values(clickMap).reduce((s, c) => s + c, 0)
 
-    // Top entries by clicks
-    const topEntries = Object.entries(clickMap)
+    // ── Daily Data for Chart ────────────────────────────────
+    const dailyMap = new Map<string, { pageViews: number; uniqueVisitors: Set<string>; clicks: number }>()
+
+    // Fill in all days in range (even days with 0 events)
+    for (let d = new Date(since); d <= new Date(); d.setDate(d.getDate() + 1)) {
+      const key = d.toISOString().split("T")[0]
+      dailyMap.set(key, { pageViews: 0, uniqueVisitors: new Set(), clicks: 0 })
+    }
+
+    for (const e of events) {
+      const key = new Date(e.timestamp).toISOString().split("T")[0]
+      const day = dailyMap.get(key)
+      if (!day) continue
+      if (e.eventType === "page_view") day.pageViews++
+      if (e.eventType === "entry_click") day.clicks++
+      day.uniqueVisitors.add(e.visitorHash)
+    }
+
+    const dailyData = Array.from(dailyMap.entries()).map(([date, data]) => ({
+      date,
+      pageViews: data.pageViews,
+      uniqueVisitors: data.uniqueVisitors.size,
+      clicks: data.clicks,
+    }))
+
+    // ── Top Entries by Clicks ───────────────────────────────
+    const clickMap: Record<string, number> = {}
+    for (const e of entryClicks) {
+      if (e.entryId) {
+        clickMap[e.entryId] = (clickMap[e.entryId] || 0) + 1
+      }
+    }
+
+    // Look up entry titles for the top entries
+    const topEntryIds = Object.entries(clickMap)
       .sort((a, b) => b[1] - a[1])
       .slice(0, 10)
-      .map(([entryId, clicks]) => ({ entryId, clicks }))
+      .map(([id]) => id)
 
-    // Average read depth
-    const depthDays = dailyData.filter((d) => d.avgReadDepth != null)
-    const avgReadDepth =
-      depthDays.length > 0
-        ? Math.round(
-            depthDays.reduce((s, d) => s + (d.avgReadDepth || 0), 0) /
-              depthDays.length,
-          )
-        : 0
+    const entryDetails = topEntryIds.length > 0
+      ? await prisma.changelogEntry.findMany({
+          where: { id: { in: topEntryIds } },
+          select: { id: true, title: true, category: true },
+        })
+      : []
 
-    // Format daily data for chart
-    const formattedDaily = dailyData.reduce(
-      (acc, d) => {
-        const dateStr = new Date(d.date).toISOString().split("T")[0]
-        const existing = acc.find((a) => a.date === dateStr)
-        if (existing) {
-          existing.pageViews += d.pageViews
-          existing.uniqueVisitors += d.uniqueVisitors
-        } else {
-          acc.push({
-            date: dateStr,
-            pageViews: d.pageViews,
-            uniqueVisitors: d.uniqueVisitors,
-          })
-        }
-        return acc
-      },
-      [] as Array<{
-        date: string
-        pageViews: number
-        uniqueVisitors: number
-      }>,
-    )
+    const entryDetailMap = new Map(entryDetails.map((e) => [e.id, e]))
+    const topEntries = topEntryIds.map((id) => ({
+      entryId: id,
+      clicks: clickMap[id],
+      title: entryDetailMap.get(id)?.title || "Unknown entry",
+      category: entryDetailMap.get(id)?.category || "changed",
+    }))
 
-    // Also get raw event counts from analytics_events for real-time data (last 24h)
+    // ── Traffic Sources ─────────────────────────────────────
+    const referrerMap: Record<string, number> = {}
+    for (const e of pageViews) {
+      const source = e.referrer
+        ? (function() {
+            try { return new URL(e.referrer).hostname } catch { return e.referrer }
+          })()
+        : "Direct"
+      referrerMap[source] = (referrerMap[source] || 0) + 1
+    }
+    const trafficSources = Object.entries(referrerMap)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 10)
+      .map(([source, count]) => ({ source, count, percentage: totalViews > 0 ? Math.round((count / totalViews) * 100) : 0 }))
+
+    // ── Widget Breakdown ────────────────────────────────────
+    const widgetViewMap: Record<string, number> = {}
+    for (const e of pageViews) {
+      widgetViewMap[e.widgetId] = (widgetViewMap[e.widgetId] || 0) + 1
+    }
+    const widgetBreakdown = widgets.map((w) => ({
+      widgetId: w.id,
+      type: w.type,
+      views: widgetViewMap[w.id] || 0,
+    }))
+
+    // ── Recent 24h ──────────────────────────────────────────
     const last24h = new Date(Date.now() - 24 * 60 * 60 * 1000)
-    const recentEvents = await prisma.analyticsEvent.count({
-      where: { widgetId: { in: widgetIds }, timestamp: { gte: last24h } },
-    })
+    const recentEvents24h = events.filter((e) => new Date(e.timestamp) >= last24h).length
 
     return Response.json({
       totalViews,
-      totalVisitors,
+      totalVisitors: uniqueVisitors,
       totalClicks,
       avgReadDepth,
-      dailyData: formattedDaily,
+      dailyData,
       topEntries,
-      recentEvents24h: recentEvents,
+      trafficSources,
+      scrollDepthDistribution,
+      widgetBreakdown,
+      recentEvents24h,
+      totalEvents,
     })
   } catch (error) {
     return handleApiError(error)

@@ -273,7 +273,7 @@
     var flushing = false;
     var intervalId = null;
 
-    function push(eventType, meta) {
+    function push(eventType, meta, immediate) {
       if (disabled) return;
       queue.push({
         eventType: eventType,
@@ -283,6 +283,8 @@
         metadata: meta || {},
         timestamp: new Date().toISOString()
       });
+      // Flush immediately for important events
+      if (immediate) flush();
     }
 
     function flush() {
@@ -315,6 +317,7 @@
         };
         document.addEventListener("visibilitychange", visHandler);
       }
+      window.addEventListener("beforeunload", flush);
     }
 
     function stop() {
@@ -377,7 +380,7 @@
 
     trackEntryClicks(container, config.analytics);
     trackScrollDepth(container.querySelector("." + PREFIX + "-timeline") || container, config.analytics);
-    config.analytics.push("page_view");
+    config.analytics.push("page_view", {}, true);
   }
 
   /** Modal widget: floating trigger + slide-out panel. */
@@ -424,7 +427,7 @@
       overlay.classList.add(PREFIX + "-overlay-open");
       panel.classList.add(PREFIX + "-panel-open");
       trigger.style.display = "none";
-      config.analytics.push("page_view");
+      config.analytics.push("page_view", {}, true);
     }
 
     function close() {
@@ -525,7 +528,7 @@
     function toggle() {
       isOpen = !isOpen;
       dropdown.classList.toggle(PREFIX + "-dropdown-open", isOpen);
-      if (isOpen) config.analytics.push("page_view");
+      if (isOpen) config.analytics.push("page_view", {}, true);
     }
 
     dot.addEventListener("click", function (e) {
