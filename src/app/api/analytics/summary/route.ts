@@ -1,14 +1,14 @@
 import { NextRequest } from "next/server"
-import { requireAuth } from "@/lib/auth/middleware"
+import { requireWorkspaceRole } from "@/lib/auth/middleware"
 import { prisma } from "@/lib/db/prisma"
 import { handleApiError, ValidationError } from "@/lib/utils/errors"
 
 export async function GET(request: NextRequest) {
   try {
-    await requireAuth()
     const { searchParams } = new URL(request.url)
     const workspaceId = searchParams.get("workspaceId")
     if (!workspaceId) throw new ValidationError("workspaceId is required")
+    await requireWorkspaceRole(workspaceId, "viewer")
     const days = parseInt(searchParams.get("days") || "30", 10)
 
     const since = new Date()

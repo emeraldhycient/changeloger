@@ -30,15 +30,17 @@ export function WorkspaceSelector() {
   const [newName, setNewName] = useState("")
   const createWorkspace = useCreateWorkspace()
 
-  // Auto-select first workspace if none selected
+  // Auto-select first workspace, or reset if stored ID doesn't belong to this user
   useEffect(() => {
-    if (!initialized && workspaces.length > 0) {
-      if (!currentWorkspaceId || !workspaces.find((w) => w.id === currentWorkspaceId)) {
+    if (workspaces.length > 0) {
+      const storedExists = currentWorkspaceId && workspaces.find((w) => w.id === currentWorkspaceId)
+      if (!storedExists) {
+        // Stored workspace doesn't belong to this user — reset to their first workspace
         setCurrentWorkspaceId(workspaces[0].id)
       }
       setInitialized(true)
     }
-  }, [workspaces, currentWorkspaceId, initialized, setCurrentWorkspaceId, setInitialized])
+  }, [workspaces, currentWorkspaceId, setCurrentWorkspaceId, setInitialized])
 
   const current = workspaces.find((w) => w.id === currentWorkspaceId)
 
