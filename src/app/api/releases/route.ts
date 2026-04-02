@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server"
 import { z } from "zod"
-import { requireAuth, requireWorkspaceRole } from "@/lib/auth/middleware"
+import { requireWorkspaceRole } from "@/lib/auth/middleware"
 import { findReleasesByWorkspace, createDraftRelease } from "@/lib/db/queries/releases"
 import { handleApiError, ValidationError } from "@/lib/utils/errors"
 
@@ -27,10 +27,10 @@ const createSchema = z.object({
 
 export async function POST(request: NextRequest) {
   try {
-    await requireAuth()
     const body = await request.json()
     const parsed = createSchema.safeParse(body)
     if (!parsed.success) throw new ValidationError("Invalid input", parsed.error.format())
+    await requireWorkspaceRole(parsed.data.workspaceId, "editor")
     const release = await createDraftRelease(parsed.data)
     return Response.json(release, { status: 201 })
   } catch (error) {

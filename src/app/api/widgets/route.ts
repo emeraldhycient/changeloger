@@ -45,10 +45,10 @@ const createSchema = z.object({
 
 export async function POST(request: Request) {
   try {
-    await requireAuth()
     const body = await request.json()
     const parsed = createSchema.safeParse(body)
     if (!parsed.success) throw new ValidationError("Invalid input", parsed.error.format())
+    await requireWorkspaceRole(parsed.data.workspaceId, "editor")
 
     // Get workspace plan for enforcement
     const workspace = await prisma.workspace.findUnique({

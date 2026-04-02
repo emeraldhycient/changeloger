@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server"
 import { z } from "zod"
-import { requireAuth } from "@/lib/auth/middleware"
+import { requireReleaseAccess } from "@/lib/auth/middleware"
 import { updateEntry, deleteEntry } from "@/lib/db/queries/changelog-entries"
 import { handleApiError, ValidationError } from "@/lib/utils/errors"
 
@@ -18,8 +18,8 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string; entryId: string }> },
 ) {
   try {
-    await requireAuth()
-    const { entryId } = await params
+    const { id, entryId } = await params
+    await requireReleaseAccess(id, "editor")
     const body = await request.json()
     const parsed = updateSchema.safeParse(body)
     if (!parsed.success) throw new ValidationError("Invalid input", parsed.error.format())
@@ -35,8 +35,8 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string; entryId: string }> },
 ) {
   try {
-    await requireAuth()
-    const { entryId } = await params
+    const { id, entryId } = await params
+    await requireReleaseAccess(id, "admin")
     await deleteEntry(entryId)
     return Response.json({ deleted: true })
   } catch (error) {

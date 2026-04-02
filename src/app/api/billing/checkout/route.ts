@@ -1,5 +1,5 @@
 import { z } from "zod"
-import { requireAuth } from "@/lib/auth/middleware"
+import { requireWorkspaceRole } from "@/lib/auth/middleware"
 import { prisma } from "@/lib/db/prisma"
 import { handleApiError, ValidationError } from "@/lib/utils/errors"
 
@@ -21,12 +21,12 @@ const checkoutSchema = z.object({
 
 export async function POST(request: Request) {
   try {
-    await requireAuth()
     const body = await request.json()
     const parsed = checkoutSchema.safeParse(body)
     if (!parsed.success) throw new ValidationError("Invalid input", parsed.error.format())
 
     const { workspaceId, plan, interval } = parsed.data
+    await requireWorkspaceRole(workspaceId, "admin")
 
     // Verify workspace exists
     const workspace = await prisma.workspace.findUnique({ where: { id: workspaceId } })

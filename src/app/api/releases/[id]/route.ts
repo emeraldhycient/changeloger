@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server"
-import { requireAuth } from "@/lib/auth/middleware"
+import { requireReleaseAccess } from "@/lib/auth/middleware"
 import { findReleaseById, updateRelease } from "@/lib/db/queries/releases"
 import { handleApiError, NotFoundError } from "@/lib/utils/errors"
 
@@ -8,8 +8,8 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    await requireAuth()
     const { id } = await params
+    await requireReleaseAccess(id)
     const release = await findReleaseById(id)
     if (!release) throw new NotFoundError("Release not found")
     return Response.json(release)
@@ -23,8 +23,8 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    await requireAuth()
     const { id } = await params
+    await requireReleaseAccess(id, "editor")
     const body = await request.json()
     const release = await updateRelease(id, {
       version: body.newVersion || undefined,

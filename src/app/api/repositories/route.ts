@@ -1,5 +1,5 @@
 import { z } from "zod"
-import { requireAuth, requireWorkspaceRole } from "@/lib/auth/middleware"
+import { requireWorkspaceRole } from "@/lib/auth/middleware"
 import { findRepositoriesByWorkspace } from "@/lib/db/queries/repositories"
 import { enforceRepoLimit } from "@/lib/middleware/plan-enforcement"
 import { handleApiError, ValidationError } from "@/lib/utils/errors"
@@ -7,10 +7,10 @@ import { prisma } from "@/lib/db/prisma"
 
 export async function GET(request: Request) {
   try {
-    await requireAuth()
     const { searchParams } = new URL(request.url)
     const workspaceId = searchParams.get("workspaceId")
     if (!workspaceId) throw new ValidationError("workspaceId is required")
+    await requireWorkspaceRole(workspaceId, "viewer")
 
     const repos = await findRepositoriesByWorkspace(workspaceId)
     return Response.json(repos)

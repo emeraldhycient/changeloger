@@ -60,3 +60,79 @@ export function getWorkspaceIdFromParams(
   }
   return segments[paramIndex]
 }
+
+/**
+ * Verify the current user has access to a release's workspace.
+ * Looks up the release → workspaceId, then checks membership.
+ */
+export async function requireReleaseAccess(
+  releaseId: string,
+  minimumRole: WorkspaceRole = "viewer",
+) {
+  const session = await requireAuth()
+  const release = await prisma.release.findUnique({
+    where: { id: releaseId },
+    select: { workspaceId: true },
+  })
+  if (!release) throw new ForbiddenError("Release not found")
+
+  const member = await prisma.workspaceMember.findUnique({
+    where: {
+      workspaceId_userId: { workspaceId: release.workspaceId, userId: session.userId },
+    },
+  })
+  if (!member || ROLE_HIERARCHY[member.role] < ROLE_HIERARCHY[minimumRole]) {
+    throw new ForbiddenError("Not authorized for this release")
+  }
+  return { session, workspaceId: release.workspaceId }
+}
+
+/**
+ * Verify the current user has access to a repository's workspace.
+ */
+export async function requireRepoAccess(
+  repositoryId: string,
+  minimumRole: WorkspaceRole = "viewer",
+) {
+  const session = await requireAuth()
+  const repo = await prisma.repository.findUnique({
+    where: { id: repositoryId },
+    select: { workspaceId: true },
+  })
+  if (!repo) throw new ForbiddenError("Repository not found")
+
+  const member = await prisma.workspaceMember.findUnique({
+    where: {
+      workspaceId_userId: { workspaceId: repo.workspaceId, userId: session.userId },
+    },
+  })
+  if (!member || ROLE_HIERARCHY[member.role] < ROLE_HIERARCHY[minimumRole]) {
+    throw new ForbiddenError("Not authorized for this repository")
+  }
+  return { session, workspaceId: repo.workspaceId }
+}
+
+/**
+ * Verify the current user has access to a widget's workspace.
+ */
+export async function requireWidgetAccess(
+  widgetId: string,
+  minimumRole: WorkspaceRole = "viewer",
+) {
+  const session = await requireAuth()
+  const widget = await prisma.widget.findUnique({
+    where: { id: widgetId },
+    select: { workspaceId: true },
+  })
+  if (!widget) throw new ForbiddenError("Widget not found")
+
+  const member = await prisma.workspaceMember.findUnique({
+    where: {
+      workspaceId_userId: { workspaceId: widget.workspaceId, userId: session.userId },
+    },
+  })
+  if (!member || ROLE_HIERARCHY[member.role] < ROLE_HIERARCHY[minimumRole]) {
+    throw new ForbiddenError("Not authorized for this widget")
+  }
+  return { session, workspaceId: widget.workspaceId }
+}
