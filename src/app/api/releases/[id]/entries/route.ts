@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server"
 import { z } from "zod"
-import { requireAuth } from "@/lib/auth/middleware"
+import { requireReleaseAccess } from "@/lib/auth/middleware"
 import { findReleaseById } from "@/lib/db/queries/releases"
 import { findEntriesByRelease, createEntry, reorderEntries } from "@/lib/db/queries/changelog-entries"
 import { handleApiError, NotFoundError, ValidationError } from "@/lib/utils/errors"
@@ -10,8 +10,8 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    await requireAuth()
     const { id } = await params
+    await requireReleaseAccess(id)
     const release = await findReleaseById(id)
     if (!release) throw new NotFoundError("Release not found")
     const entries = await findEntriesByRelease(release.id)
@@ -34,8 +34,8 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    await requireAuth()
     const { id } = await params
+    await requireReleaseAccess(id, "editor")
     const release = await findReleaseById(id)
     if (!release) throw new NotFoundError("Release not found")
 
@@ -58,8 +58,8 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    await requireAuth()
     const { id } = await params
+    await requireReleaseAccess(id, "editor")
     const release = await findReleaseById(id)
     if (!release) throw new NotFoundError("Release not found")
 

@@ -1,15 +1,15 @@
 import { NextRequest } from "next/server"
-import { requireAuth } from "@/lib/auth/middleware"
+import { requireWorkspaceRole } from "@/lib/auth/middleware"
 import { prisma } from "@/lib/db/prisma"
 import { handleApiError, ValidationError } from "@/lib/utils/errors"
 
 export async function POST(request: NextRequest) {
   try {
-    const session = await requireAuth()
     const body = await request.json()
     const workspaceId = body.workspaceId
 
     if (!workspaceId) throw new ValidationError("workspaceId is required")
+    const { session } = await requireWorkspaceRole(workspaceId, "admin")
 
     // Get the installation for this workspace
     const installation = await prisma.githubInstallation.findFirst({

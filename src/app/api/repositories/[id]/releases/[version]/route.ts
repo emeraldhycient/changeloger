@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server"
-import { requireAuth } from "@/lib/auth/middleware"
+import { requireRepoAccess } from "@/lib/auth/middleware"
 import { prisma } from "@/lib/db/prisma"
 import { handleApiError, NotFoundError } from "@/lib/utils/errors"
 
@@ -8,8 +8,8 @@ export async function GET(
   { params }: { params: Promise<{ id: string; version: string }> },
 ) {
   try {
-    await requireAuth()
     const { id, version } = await params
+    await requireRepoAccess(id)
     const release = await prisma.release.findFirst({
       where: { repositoryId: id, version: decodeURIComponent(version) },
       include: {
@@ -30,8 +30,8 @@ export async function PUT(
   { params }: { params: Promise<{ id: string; version: string }> },
 ) {
   try {
-    await requireAuth()
     const { id, version } = await params
+    await requireRepoAccess(id, "editor")
     const body = await request.json()
     const release = await prisma.release.findFirst({
       where: { repositoryId: id, version: decodeURIComponent(version) },

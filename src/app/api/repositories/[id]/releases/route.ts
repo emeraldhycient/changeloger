@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server"
 import { z } from "zod"
-import { requireAuth } from "@/lib/auth/middleware"
+import { requireRepoAccess } from "@/lib/auth/middleware"
 import { findReleasesByRepository } from "@/lib/db/queries/releases"
 import { prisma } from "@/lib/db/prisma"
 import { handleApiError, ValidationError } from "@/lib/utils/errors"
@@ -10,8 +10,8 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    await requireAuth()
     const { id } = await params
+    await requireRepoAccess(id)
     const { searchParams } = new URL(request.url)
     const status = searchParams.get("status") as "draft" | "published" | "archived" | undefined
     const releases = await findReleasesByRepository(id, status || undefined)
@@ -31,8 +31,8 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    await requireAuth()
     const { id } = await params
+    await requireRepoAccess(id, "editor")
     const body = await request.json()
     const parsed = createSchema.safeParse(body)
     if (!parsed.success) throw new ValidationError("Invalid input", parsed.error.format())

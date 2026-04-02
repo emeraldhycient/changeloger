@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server"
 import { z } from "zod"
-import { requireAuth } from "@/lib/auth/middleware"
+import { requireWidgetAccess } from "@/lib/auth/middleware"
 import { prisma } from "@/lib/db/prisma"
 import { handleApiError, NotFoundError, ValidationError } from "@/lib/utils/errors"
 
@@ -9,8 +9,8 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    await requireAuth()
     const { id } = await params
+    await requireWidgetAccess(id)
     const widget = await prisma.widget.findUnique({ where: { id } })
     if (!widget) throw new NotFoundError("Widget not found")
     return Response.json(widget)
@@ -30,8 +30,8 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    await requireAuth()
     const { id } = await params
+    await requireWidgetAccess(id, "editor")
     const body = await request.json()
     const parsed = updateSchema.safeParse(body)
     if (!parsed.success) throw new ValidationError("Invalid input", parsed.error.format())
@@ -56,8 +56,8 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    await requireAuth()
     const { id } = await params
+    await requireWidgetAccess(id, "admin")
     const existing = await prisma.widget.findUnique({ where: { id } })
     if (!existing) throw new NotFoundError("Widget not found")
     await prisma.widget.delete({ where: { id } })

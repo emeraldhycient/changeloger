@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server"
 import { z } from "zod"
-import { requireAuth } from "@/lib/auth/middleware"
+import { requireRepoAccess } from "@/lib/auth/middleware"
 import { findRepositoryById, updateRepositoryConfig, toggleRepositoryActive, deleteRepository } from "@/lib/db/queries/repositories"
 import { handleApiError, NotFoundError, ValidationError } from "@/lib/utils/errors"
 
@@ -9,8 +9,8 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    await requireAuth()
     const { id } = await params
+    await requireRepoAccess(id)
     const repo = await findRepositoryById(id)
     if (!repo) throw new NotFoundError("Repository not found")
     return Response.json(repo)
@@ -29,8 +29,8 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    await requireAuth()
     const { id } = await params
+    await requireRepoAccess(id, "editor")
     const body = await request.json()
     const parsed = updateSchema.safeParse(body)
     if (!parsed.success) throw new ValidationError("Invalid input", parsed.error.format())
@@ -54,8 +54,8 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    await requireAuth()
     const { id } = await params
+    await requireRepoAccess(id, "admin")
     await deleteRepository(id)
     return Response.json({ deleted: true })
   } catch (error) {

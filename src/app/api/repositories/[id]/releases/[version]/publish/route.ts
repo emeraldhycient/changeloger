@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server"
-import { requireAuth } from "@/lib/auth/middleware"
+import { requireRepoAccess } from "@/lib/auth/middleware"
 import { prisma } from "@/lib/db/prisma"
 import { publishRelease } from "@/lib/releases/publish"
 import { handleApiError, NotFoundError } from "@/lib/utils/errors"
@@ -9,8 +9,8 @@ export async function POST(
   { params }: { params: Promise<{ id: string; version: string }> },
 ) {
   try {
-    const session = await requireAuth()
     const { id, version } = await params
+    const { session } = await requireRepoAccess(id, "editor")
 
     const release = await prisma.release.findFirst({
       where: { repositoryId: id, version: decodeURIComponent(version) },
