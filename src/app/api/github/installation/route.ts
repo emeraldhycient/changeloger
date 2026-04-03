@@ -5,20 +5,30 @@ import { handleApiError } from "@/lib/utils/errors"
 
 export async function GET(request: NextRequest) {
   try {
-    const session = await requireAuth()
     const { searchParams } = new URL(request.url)
     const installationId = searchParams.get("installation_id")
     const setupAction = searchParams.get("setup_action")
     const stateWorkspaceId = searchParams.get("state")
 
-    if (!installationId || !setupAction) {
+    console.log("[GitHub Install] Callback received:", { installationId, setupAction, stateWorkspaceId })
+
+    if (!installationId) {
+      console.error("[GitHub Install] Missing installation_id")
       return NextResponse.redirect(new URL("/dashboard/repositories?error=invalid_callback", request.url))
     }
 
-    // GitHub sends setup_action=install (first time) or setup_action=update (modify repos)
-    // We handle both the same way
-    if (setupAction !== "install" && setupAction !== "update") {
+    // Accept any setup_action or none (GitHub doesn't always send it)
+    if (setupAction && setupAction !== "install" && setupAction !== "update") {
+      console.error("[GitHub Install] Unexpected setup_action:", setupAction)
       return NextResponse.redirect(new URL("/dashboard/repositories?error=invalid_callback", request.url))
+    }
+
+    let session
+    try {
+      session = await requireAuth()
+    } catch {
+      console.error("[GitHub Install] User not authenticated — session may have expired during GitHub redirect")
+      return NextResponse.redirect(new URL("/sign-in?redirect=/dashboard/repositories&error=session_expired", request.url))
     }
 
     let workspaceId: string | null = null
@@ -55,6 +65,7 @@ export async function GET(request: NextRequest) {
     })
 
     // Create or update installation record
+    console.log("[GitHub Install] Upserting installation:", { installationId: numericId, workspaceId })
     await prisma.githubInstallation.upsert({
       where: { installationId: numericId },
       update: { workspaceId },
@@ -65,6 +76,7 @@ export async function GET(request: NextRequest) {
         accountType: "User",
       },
     })
+    console.log("[GitHub Install] Installation record created/updated")
 
     // Try syncing repos
     let syncSuccess = false

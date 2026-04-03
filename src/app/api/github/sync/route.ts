@@ -12,12 +12,59 @@ export async function POST(request: NextRequest) {
     const { session } = await requireWorkspaceRole(workspaceId, "admin")
 
     // Get the installation for this workspace
-    const installation = await prisma.githubInstallation.findFirst({
+    let installation = await prisma.githubInstallation.findFirst({
       where: { workspaceId },
     })
 
+    // If no installation record exists, check if the user has a GitHub OAuth token
+    // and try to discover installations via the GitHub API
     if (!installation) {
-      throw new ValidationError("No GitHub App installation found. Click 'Connect GitHub Repository' to install the GitHub App first.")
+      const oauthAccount = await prisma.oAuthAccount.findFirst({
+        where: { userId: session.userId, provider: "github" },
+      })
+
+      if (oauthAccount?.accessToken) {
+        // Try to find installations via GitHub user API
+        try {
+          const res = await fetch("https://api.github.com/user/installations", {
+            headers: {
+              Authorization: `Bearer ${oauthAccount.accessToken}`,
+              Accept: "application/vnd.github+json",
+            },
+          })
+          if (res.ok) {
+            const data = await res.json()
+            const installations = data.installations || []
+            // Find the changeloger app installation
+            const appId = process.env.GITHUB_APP_ID
+            const found = appId
+              ? installations.find((i: { app_id: number }) => String(i.app_id) === appId)
+              : installations[0] // fallback to first installation
+
+            if (found) {
+              installation = await prisma.githubInstallation.upsert({
+                where: { installationId: found.id },
+                update: { workspaceId },
+                create: {
+                  installationId: found.id,
+                  workspaceId,
+                  accountLogin: found.account?.login || "unknown",
+                  accountType: found.target_type || "User",
+                },
+              })
+              console.log("[Sync] Created installation record from GitHub API:", found.id)
+            }
+          }
+        } catch (err) {
+          console.error("[Sync] Failed to discover installations:", err)
+        }
+      }
+
+      if (!installation) {
+        throw new ValidationError(
+          "No GitHub App installation found. Click 'Connect GitHub Repository' to install the GitHub App first."
+        )
+      }
     }
 
     // Method 1: Use GitHub App installation token (primary — works for all users)
@@ -41,7 +88,7 @@ export async function POST(request: NextRequest) {
         const repos = await prisma.repository.findMany({ where: { workspaceId } })
         return Response.json({ synced: repos.length, method: "app" })
       } catch (err) {
-        console.error("App-based sync failed:", err)
+        console.error("[Sync] App-based sync failed:", err)
         // Fall through to OAuth method
       }
     }
@@ -54,7 +101,7 @@ export async function POST(request: NextRequest) {
     if (!oauthAccount?.accessToken) {
       throw new ValidationError(
         "GitHub App sync failed and no GitHub OAuth token available. " +
-        "Ensure GITHUB_APP_ID and GITHUB_APP_PRIVATE_KEY are set in your environment, " +
+        "Ensure GITHUB_APP_ID and GITHUB_APP_PRIVATE_KEY are set, " +
         "or sign in with GitHub to use OAuth-based sync."
       )
     }
