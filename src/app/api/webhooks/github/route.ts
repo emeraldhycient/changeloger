@@ -31,8 +31,10 @@ export async function POST(request: NextRequest) {
         await handleReleaseEvent(payload as ReleaseEventPayload)
         break
       case "installation":
+        await handleInstallationEvent(payload)
+        break
       case "installation_repositories":
-        // Handled via callback flow, not webhook
+        await handleInstallationRepositoriesEvent(payload)
         break
       default:
         // Ignore unhandled events
@@ -133,4 +135,164 @@ async function handleReleaseEvent(payload: ReleaseEventPayload) {
       },
     },
   })
+}
+
+// ─── Installation events ──────────────────────────────────────────────────
+
+interface InstallationPayload {
+  action: string
+  installation: {
+    id: number
+    account: { login: string; type?: string }
+    target_type?: string
+  }
+  repositories?: Array<{
+    id: number
+    name: string
+    full_name: string
+    private: boolean
+  }>
+  sender: { login: string }
+}
+
+async function handleInstallationEvent(payload: InstallationPayload) {
+  const { action, installation } = payload
+
+  if (action === "created") {
+    // New installation — create record if it doesn't exist
+    // The workspace linking happens via the OAuth callback, but we can
+    // update the account info here
+    const existing = await prisma.githubInstallation.findUnique({
+      where: { installationId: installation.id },
+    })
+
+    if (existing) {
+      await prisma.githubInstallation.update({
+        where: { installationId: installation.id },
+        data: {
+          accountLogin: installation.account.login,
+          accountType: installation.target_type || "User",
+        },
+      })
+      console.log("[Webhook] Updated installation:", installation.id, installation.account.login)
+
+      // Sync initial repos if provided
+      if (payload.repositories && payload.repositories.length > 0) {
+        await syncReposFromPayload(existing.id, existing.workspaceId, payload.repositories)
+      }
+    }
+  } else if (action === "deleted" || action === "suspend") {
+    // Installation removed or suspended — deactivate repos
+    const inst = await prisma.githubInstallation.findUnique({
+      where: { installationId: installation.id },
+    })
+    if (inst) {
+      await prisma.repository.updateMany({
+        where: { githubInstallationId: inst.id },
+        data: { isActive: false },
+      })
+      console.log("[Webhook] Deactivated repos for installation:", installation.id)
+    }
+  }
+}
+
+interface InstallationReposPayload {
+  action: string
+  installation: {
+    id: number
+    account: { login: string }
+  }
+  repository_selection: string
+  repositories_added: Array<{
+    id: number
+    name: string
+    full_name: string
+    private: boolean
+    default_branch?: string
+    language?: string | null
+  }>
+  repositories_removed: Array<{
+    id: number
+    name: string
+    full_name: string
+  }>
+}
+
+async function handleInstallationRepositoriesEvent(payload: InstallationReposPayload) {
+  const inst = await prisma.githubInstallation.findUnique({
+    where: { installationId: payload.installation.id },
+  })
+
+  if (!inst) {
+    console.log("[Webhook] No installation record for:", payload.installation.id, "— skipping repo sync")
+    return
+  }
+
+  // Update account login
+  if (inst.accountLogin === "pending-sync" || inst.accountLogin === "syncing") {
+    await prisma.githubInstallation.update({
+      where: { id: inst.id },
+      data: { accountLogin: payload.installation.account.login },
+    })
+  }
+
+  // Handle added repos
+  if (payload.repositories_added && payload.repositories_added.length > 0) {
+    await syncReposFromPayload(inst.id, inst.workspaceId, payload.repositories_added)
+    console.log("[Webhook] Synced", payload.repositories_added.length, "added repos for installation:", payload.installation.id)
+  }
+
+  // Handle removed repos — deactivate them
+  if (payload.repositories_removed && payload.repositories_removed.length > 0) {
+    for (const repo of payload.repositories_removed) {
+      await prisma.repository.updateMany({
+        where: {
+          workspaceId: inst.workspaceId,
+          githubRepoId: repo.id,
+        },
+        data: { isActive: false },
+      })
+    }
+    console.log("[Webhook] Deactivated", payload.repositories_removed.length, "removed repos")
+  }
+}
+
+async function syncReposFromPayload(
+  installationDbId: string,
+  workspaceId: string,
+  repos: Array<{
+    id: number
+    name: string
+    full_name: string
+    private?: boolean
+    default_branch?: string
+    language?: string | null
+  }>,
+) {
+  for (const repo of repos) {
+    await prisma.repository.upsert({
+      where: {
+        workspaceId_githubRepoId: {
+          workspaceId,
+          githubRepoId: repo.id,
+        },
+      },
+      update: {
+        name: repo.name,
+        fullName: repo.full_name,
+        defaultBranch: repo.default_branch || "main",
+        language: repo.language || null,
+        isActive: true,
+      },
+      create: {
+        workspaceId,
+        githubInstallationId: installationDbId,
+        githubRepoId: repo.id,
+        name: repo.name,
+        fullName: repo.full_name,
+        defaultBranch: repo.default_branch || "main",
+        language: repo.language || null,
+      },
+    })
+  }
 }
