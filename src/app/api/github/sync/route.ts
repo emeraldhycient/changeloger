@@ -11,13 +11,12 @@ export async function POST(request: NextRequest) {
     if (!workspaceId) throw new ValidationError("workspaceId is required")
     const { session } = await requireWorkspaceRole(workspaceId, "admin")
 
-    // Get the installation for this workspace
+    // ── Find the GitHub App installation ────────────────────────
     let installation = await prisma.githubInstallation.findFirst({
       where: { workspaceId },
     })
 
-    // If no installation found for this workspace, check if there's one linked
-    // to another workspace owned by this user — and re-link it
+    // Check other workspaces the user owns — re-link if found
     if (!installation) {
       const userWorkspaces = await prisma.workspaceMember.findMany({
         where: { userId: session.userId, role: { in: ["owner", "admin"] } },
@@ -27,23 +26,26 @@ export async function POST(request: NextRequest) {
         where: { workspaceId: { in: userWorkspaces.map((w) => w.workspaceId) } },
       })
       if (otherInstallation) {
-        // Re-link the installation to the current workspace
         installation = await prisma.githubInstallation.update({
           where: { id: otherInstallation.id },
+          data: { workspaceId },
+        })
+        // Also re-link any repos from the old workspace
+        await prisma.repository.updateMany({
+          where: { githubInstallationId: installation.id },
           data: { workspaceId },
         })
         console.log("[Sync] Re-linked installation", otherInstallation.installationId, "to workspace", workspaceId)
       }
     }
 
-    // If still no installation, try discovering via GitHub API
+    // Try discovering installation via GitHub user API (for OAuth users)
     if (!installation) {
       const oauthAccount = await prisma.oAuthAccount.findFirst({
         where: { userId: session.userId, provider: "github" },
       })
 
       if (oauthAccount?.accessToken) {
-        // Try to find installations via GitHub user API
         try {
           const res = await fetch("https://api.github.com/user/installations", {
             headers: {
@@ -54,11 +56,10 @@ export async function POST(request: NextRequest) {
           if (res.ok) {
             const data = await res.json()
             const installations = data.installations || []
-            // Find the changeloger app installation
             const appId = process.env.GITHUB_APP_ID
             const found = appId
               ? installations.find((i: { app_id: number }) => String(i.app_id) === appId)
-              : installations[0] // fallback to first installation
+              : installations[0]
 
             if (found) {
               installation = await prisma.githubInstallation.upsert({
@@ -71,7 +72,7 @@ export async function POST(request: NextRequest) {
                   accountType: found.target_type || "User",
                 },
               })
-              console.log("[Sync] Created installation record from GitHub API:", found.id)
+              console.log("[Sync] Discovered installation from GitHub API:", found.id)
             }
           }
         } catch (err) {
@@ -81,91 +82,36 @@ export async function POST(request: NextRequest) {
 
       if (!installation) {
         throw new ValidationError(
-          "No GitHub App installation found. Click 'Connect GitHub Repository' to install the GitHub App first."
+          "No GitHub App installation found. Click 'Connect GitHub Repository' to install the GitHub App on your account first."
         )
       }
     }
 
-    // Method 1: Use GitHub App installation token (primary — works for all users)
-    if (process.env.GITHUB_APP_ID && process.env.GITHUB_APP_PRIVATE_KEY) {
-      try {
-        const { syncInstallationRepos } = await import("@/lib/github/installation")
-        await syncInstallationRepos(installation.installationId, workspaceId)
-
-        // Update account login if still pending
-        if (installation.accountLogin === "pending-sync" || installation.accountLogin === "syncing") {
-          const repo = await prisma.repository.findFirst({ where: { workspaceId } })
-          if (repo) {
-            const login = repo.fullName.split("/")[0]
-            await prisma.githubInstallation.update({
-              where: { id: installation.id },
-              data: { accountLogin: login },
-            })
-          }
-        }
-
-        const repos = await prisma.repository.findMany({ where: { workspaceId } })
-        return Response.json({ synced: repos.length, method: "app" })
-      } catch (err) {
-        console.error("[Sync] App-based sync failed:", err)
-        // Fall through to OAuth method
-      }
-    }
-
-    // Method 2: Use user's GitHub OAuth token (fallback)
-    const oauthAccount = await prisma.oAuthAccount.findFirst({
-      where: { userId: session.userId, provider: "github" },
-    })
-
-    if (!oauthAccount?.accessToken) {
+    // ── Sync repos using the App installation token ─────────────
+    // This correctly scopes to ONLY repos the app has access to,
+    // NOT all user repos. Works for ALL users (Gmail or GitHub OAuth).
+    if (!process.env.GITHUB_APP_ID || !process.env.GITHUB_APP_PRIVATE_KEY) {
       throw new ValidationError(
-        "GitHub App sync failed and no GitHub OAuth token available. " +
-        "Ensure GITHUB_APP_ID and GITHUB_APP_PRIVATE_KEY are set, " +
-        "or sign in with GitHub to use OAuth-based sync."
+        "GitHub App credentials (GITHUB_APP_ID, GITHUB_APP_PRIVATE_KEY) are not configured on the server."
       )
     }
 
-    const { createGitHubClient } = await import("@/lib/github/client")
-    const client = createGitHubClient(oauthAccount.accessToken)
-    const repos = await client.getRepos()
+    const { syncInstallationRepos } = await import("@/lib/github/installation")
+    await syncInstallationRepos(installation.installationId, workspaceId)
 
-    const userLogin = repos[0]?.owner?.login
-    if (userLogin && installation.accountLogin !== userLogin) {
-      await prisma.githubInstallation.update({
-        where: { id: installation.id },
-        data: { accountLogin: userLogin },
-      })
+    // Update account login if pending
+    if (installation.accountLogin === "pending-sync" || installation.accountLogin === "syncing" || installation.accountLogin === "unknown") {
+      const repo = await prisma.repository.findFirst({ where: { workspaceId } })
+      if (repo) {
+        await prisma.githubInstallation.update({
+          where: { id: installation.id },
+          data: { accountLogin: repo.fullName.split("/")[0] },
+        })
+      }
     }
 
-    let syncedCount = 0
-    for (const repo of repos) {
-      await prisma.repository.upsert({
-        where: {
-          workspaceId_githubRepoId: {
-            workspaceId,
-            githubRepoId: repo.id,
-          },
-        },
-        update: {
-          name: repo.name,
-          fullName: repo.full_name,
-          defaultBranch: repo.default_branch,
-          language: repo.language,
-        },
-        create: {
-          workspaceId,
-          githubInstallationId: installation.id,
-          githubRepoId: repo.id,
-          name: repo.name,
-          fullName: repo.full_name,
-          defaultBranch: repo.default_branch,
-          language: repo.language,
-        },
-      })
-      syncedCount++
-    }
-
-    return Response.json({ synced: syncedCount, method: "oauth" })
+    const repos = await prisma.repository.findMany({ where: { workspaceId } })
+    return Response.json({ synced: repos.length, method: "app" })
   } catch (error) {
     return handleApiError(error)
   }
