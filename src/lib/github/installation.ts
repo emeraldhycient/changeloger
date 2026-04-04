@@ -100,12 +100,40 @@ export async function syncInstallationRepos(installationId: number, workspaceId:
 }
 
 async function generateAppJWT(): Promise<string> {
-  // Simple JWT generation for GitHub App authentication
   const jwt = await import("jsonwebtoken")
   const now = Math.floor(Date.now() / 1000)
+
+  if (!PRIVATE_KEY) {
+    throw new Error("GITHUB_APP_PRIVATE_KEY is not set")
+  }
+
+  // Handle different formats of the private key:
+  // 1. Literal \n in the env var (e.g. from .env file with quotes)
+  // 2. Actual newlines (e.g. from a secret manager)
+  // 3. Base64 encoded key
+  let key = PRIVATE_KEY
+
+  // Replace literal \n with actual newlines
+  if (key.includes("\\n")) {
+    key = key.replace(/\\n/g, "\n")
+  }
+
+  // If it looks base64 encoded (no BEGIN marker), decode it
+  if (!key.includes("-----BEGIN") && key.length > 100) {
+    key = Buffer.from(key, "base64").toString("utf-8")
+  }
+
+  // Ensure the key has proper PEM formatting
+  if (!key.startsWith("-----BEGIN")) {
+    throw new Error(
+      "GITHUB_APP_PRIVATE_KEY doesn't look like a valid PEM key. " +
+      "It should start with -----BEGIN RSA PRIVATE KEY----- or -----BEGIN PRIVATE KEY-----"
+    )
+  }
+
   return jwt.default.sign(
     { iat: now - 60, exp: now + 10 * 60, iss: APP_ID },
-    PRIVATE_KEY!.replace(/\\n/g, "\n"),
+    key,
     { algorithm: "RS256" },
   )
 }
