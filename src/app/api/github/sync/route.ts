@@ -16,8 +16,27 @@ export async function POST(request: NextRequest) {
       where: { workspaceId },
     })
 
-    // If no installation record exists, check if the user has a GitHub OAuth token
-    // and try to discover installations via the GitHub API
+    // If no installation found for this workspace, check if there's one linked
+    // to another workspace owned by this user — and re-link it
+    if (!installation) {
+      const userWorkspaces = await prisma.workspaceMember.findMany({
+        where: { userId: session.userId, role: { in: ["owner", "admin"] } },
+        select: { workspaceId: true },
+      })
+      const otherInstallation = await prisma.githubInstallation.findFirst({
+        where: { workspaceId: { in: userWorkspaces.map((w) => w.workspaceId) } },
+      })
+      if (otherInstallation) {
+        // Re-link the installation to the current workspace
+        installation = await prisma.githubInstallation.update({
+          where: { id: otherInstallation.id },
+          data: { workspaceId },
+        })
+        console.log("[Sync] Re-linked installation", otherInstallation.installationId, "to workspace", workspaceId)
+      }
+    }
+
+    // If still no installation, try discovering via GitHub API
     if (!installation) {
       const oauthAccount = await prisma.oAuthAccount.findFirst({
         where: { userId: session.userId, provider: "github" },
