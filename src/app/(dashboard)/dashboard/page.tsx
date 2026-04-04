@@ -55,12 +55,12 @@ const gettingStartedCards = [
 export default function DashboardPage() {
   const workspaceId = useWorkspaceStore((s) => s.currentWorkspaceId)
 
-  const { data: repos = [] } = useQuery({
+  const { data: repoData } = useQuery({
     queryKey: ["repositories", workspaceId],
     queryFn: async () => {
-      if (!workspaceId) return []
+      if (!workspaceId) return { repositories: [], pagination: { total: 0 } }
       const { data } = await apiClient.get(
-        `/api/repositories?workspaceId=${workspaceId}`,
+        `/api/repositories?workspaceId=${workspaceId}&limit=1`,
       )
       return data
     },
@@ -80,7 +80,7 @@ export default function DashboardPage() {
   const { data: allReleases = [] } = useReleases(workspaceId)
 
   const memberCount = workspaces[0]?._count?.members ?? 1
-  const repoCount = repos.length
+  const repoCount = repoData?.pagination?.total ?? 0
 
   // Recent 5 releases sorted by date descending
   const recentReleases = [...allReleases]
