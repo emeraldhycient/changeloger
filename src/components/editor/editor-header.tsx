@@ -2,12 +2,13 @@
 
 import { useState, useRef, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { ArrowLeft, FileText, Send, GitBranch, Layers } from "lucide-react"
+import { ArrowLeft, FileText, Send, GitBranch, Layers, Sparkles } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import { PublishDialog } from "@/components/editor/publish-dialog"
+import { GenerateDialog } from "@/components/editor/generate-dialog"
 import type { Release } from "@/hooks/use-releases"
 import { apiClient } from "@/lib/api/client"
 
@@ -19,6 +20,7 @@ interface EditorHeaderProps {
 export function EditorHeader({ release, entryCount }: EditorHeaderProps) {
   const router = useRouter()
   const [publishOpen, setPublishOpen] = useState(false)
+  const [generateOpen, setGenerateOpen] = useState(false)
   const [editingVersion, setEditingVersion] = useState(false)
   const [versionDraft, setVersionDraft] = useState(release.version)
   const versionRef = useRef<HTMLInputElement>(null)
@@ -125,6 +127,18 @@ export function EditorHeader({ release, entryCount }: EditorHeaderProps) {
             </span>
           </div>
 
+          {/* Generate */}
+          {isDraft && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setGenerateOpen(true)}
+            >
+              <Sparkles className="mr-1.5 h-3.5 w-3.5" />
+              Generate
+            </Button>
+          )}
+
           {/* Publish */}
           {isDraft && (
             <Button
@@ -145,6 +159,12 @@ export function EditorHeader({ release, entryCount }: EditorHeaderProps) {
         release={release}
         entryCount={entryCount}
         breakingCount={breakingCount}
+      />
+
+      <GenerateDialog
+        open={generateOpen}
+        onOpenChange={setGenerateOpen}
+        release={release}
       />
     </>
   )
