@@ -20,7 +20,7 @@ export async function GET(request: NextRequest) {
 
 const createSchema = z.object({
   workspaceId: z.string().uuid(),
-  version: z.string().min(1),
+  version: z.string().min(1).max(100).regex(/^[a-zA-Z0-9.\-_+]+$/, "Invalid version format"),
   summary: z.string().optional(),
   repositoryId: z.string().uuid().optional(),
 })

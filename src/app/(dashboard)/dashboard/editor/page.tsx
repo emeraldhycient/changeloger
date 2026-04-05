@@ -81,6 +81,7 @@ function NewDraftDialog({
               onChange={(e) => setVersion(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && handleCreate()}
               placeholder="e.g. 1.0.0"
+              aria-label="Version number"
               className="flex h-8 w-full items-center rounded-none border border-border bg-background px-2.5 text-xs outline-none placeholder:text-muted-foreground focus:border-ring focus:ring-1 focus:ring-ring/50"
             />
           </div>
@@ -144,10 +145,13 @@ function DraftListView() {
       </div>
 
       {isLoading ? (
-        <div className="flex flex-col gap-3">
-          {Array.from({ length: 3 }).map((_, i) => (
-            <div key={i} className="h-20 animate-pulse rounded-lg bg-muted/50" />
-          ))}
+        <div role="status" aria-label="Loading content">
+          <span className="sr-only">Loading...</span>
+          <div className="flex flex-col gap-3">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <div key={i} className="h-20 animate-pulse rounded-lg bg-muted/50" />
+            ))}
+          </div>
         </div>
       ) : allDrafts.length === 0 ? (
         <div className="flex flex-col items-center justify-center rounded-lg border border-dashed py-16">
@@ -285,7 +289,8 @@ function EditorView({ releaseId }: { releaseId: string }) {
 
   if (isLoadingRelease) {
     return (
-      <div className="mx-auto max-w-5xl space-y-4">
+      <div className="mx-auto max-w-5xl space-y-4" role="status" aria-label="Loading content">
+        <span className="sr-only">Loading...</span>
         <div className="h-10 animate-pulse rounded bg-muted/50" />
         <div className="h-6 w-48 animate-pulse rounded bg-muted/50" />
         <Separator />
