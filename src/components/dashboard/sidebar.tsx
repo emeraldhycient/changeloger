@@ -13,6 +13,7 @@ import {
   Code,
   ChevronsLeft,
   ChevronsRight,
+  Activity,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Logo } from "@/components/shared/logo"
@@ -29,6 +30,7 @@ const navItems = [
   { label: "Repositories", icon: GitBranch, href: "/dashboard/repositories" },
   { label: "Editor", icon: PenLine, href: "/dashboard/editor" },
   { label: "Changelogs", icon: FileText, href: "/dashboard/changelogs" },
+  { label: "Activity", icon: Activity, href: "/dashboard/activity" },
   { label: "Widgets", icon: Code, href: "/dashboard/widgets" },
   { label: "Team", icon: Users, href: "/dashboard/team" },
   { label: "Analytics", icon: BarChart3, href: "/dashboard/analytics" },

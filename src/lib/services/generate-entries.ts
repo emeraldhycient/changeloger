@@ -18,7 +18,6 @@ interface GenerateResult {
   method: "ai" | "rule-based"
 }
 
-// Valid categories and impacts for Prisma enums
 const VALID_CATEGORIES: Set<string> = new Set([
   "added", "fixed", "changed", "removed", "deprecated",
   "security", "performance", "documentation", "maintenance", "breaking",
@@ -35,7 +34,7 @@ export async function generateEntriesFromChanges(options: GenerateOptions): Prom
     ? await findUnprocessedByRepo(repositoryId, limit)
     : await findUnprocessedByWorkspace(workspaceId, limit)
 
-  console.log("[Generate] Found", records.length, "unprocessed records")
+  console.log("[Generate] Found", records.length, "unprocessed records for release", releaseId)
 
   if (records.length === 0) {
     return { entries: [], processedCount: 0, method: "rule-based" }
@@ -58,16 +57,18 @@ export async function generateEntriesFromChanges(options: GenerateOptions): Prom
     }
   })
 
-  // 3. Run commit analyzer (rule-based — always works)
-  let finalEntries: GeneratedEntry[] = analyzeCommits(rawCommits)
-  let method: "ai" | "rule-based" = "rule-based"
-  console.log("[Generate] Commit analyzer produced", finalEntries.length, "entries")
+  // 3. Run commit analyzer (rule-based — always works, always produces entries)
+  const ruleBasedEntries: GeneratedEntry[] = analyzeCommits(rawCommits)
+  console.log("[Generate] Rule-based analyzer produced", ruleBasedEntries.length, "entries from", rawCommits.length, "commits")
 
-  // 4. Try AI summarization if requested
-  if (useAI && process.env.OPENAI_API_KEY) {
+  // 4. Try AI summarization if requested AND we have enough commits to justify it
+  let finalEntries = ruleBasedEntries
+  let method: "ai" | "rule-based" = "rule-based"
+
+  if (useAI && process.env.OPENAI_API_KEY && rawCommits.length >= 3) {
     try {
       const { enforceAIGenerationLimit, incrementAIUsage } = await import("@/lib/middleware/plan-enforcement")
-      await enforceAIGenerationLimit(workspaceId, finalEntries.length)
+      await enforceAIGenerationLimit(workspaceId, ruleBasedEntries.length)
 
       const { createOpenAIProvider } = await import("@/lib/ai/openai")
       const ai = createOpenAIProvider(process.env.OPENAI_API_KEY)
@@ -111,13 +112,34 @@ export async function generateEntriesFromChanges(options: GenerateOptions): Prom
     }
   }
 
-  if (finalEntries.length === 0) {
-    console.log("[Generate] No entries to create, marking records as processed")
-    await markAsProcessed(records.map((r) => r.id))
-    return { entries: [], processedCount: records.length, method }
+  // 5. Ensure we always have at least one entry per commit (fallback)
+  if (finalEntries.length === 0 && rawCommits.length > 0) {
+    console.log("[Generate] No entries from analyzer, creating direct entries from commits")
+    finalEntries = rawCommits.map((rc) => {
+      const firstLine = rc.message.split("\n")[0]
+      const typeMatch = firstLine.match(/^(\w+)(?:\([^)]*\))?!?:\s*(.+)/)
+      const type = typeMatch?.[1] || "changed"
+      const subject = typeMatch?.[2] || firstLine
+      const categoryMap: Record<string, string> = {
+        feat: "added", fix: "fixed", perf: "performance", refactor: "changed",
+        docs: "documentation", chore: "maintenance", build: "maintenance",
+        ci: "maintenance", test: "maintenance", style: "maintenance",
+        revert: "removed",
+      }
+      return {
+        category: (categoryMap[type] || "changed") as GeneratedEntry["category"],
+        title: subject,
+        description: null,
+        impact: "medium" as const,
+        breaking: firstLine.includes("!:") || rc.message.includes("BREAKING CHANGE"),
+        confidence: 0.9,
+        authors: [rc.author],
+        sourceCommitShas: [rc.sha],
+      }
+    })
   }
 
-  // 5. Get current max position for the release
+  // 6. Get current max position for the release
   const existingEntries = await prisma.changelogEntry.findMany({
     where: { releaseId },
     select: { position: true },
@@ -126,11 +148,10 @@ export async function generateEntriesFromChanges(options: GenerateOptions): Prom
   })
   let nextPosition = (existingEntries[0]?.position ?? -1) + 1
 
-  // 6. Create ChangelogEntry rows
+  // 7. Create ChangelogEntry rows
   const createdEntries = []
   for (const entry of finalEntries) {
     try {
-      // Sanitize category and impact to valid enum values
       const category = VALID_CATEGORIES.has(entry.category) ? entry.category : "changed"
       const impact = VALID_IMPACTS.has(entry.impact) ? entry.impact : "medium"
 
@@ -149,16 +170,16 @@ export async function generateEntriesFromChanges(options: GenerateOptions): Prom
         },
       })
       createdEntries.push({ id: created.id, category: created.category, title: created.title })
-      console.log("[Generate] Created entry:", created.title)
+      console.log("[Generate] ✓ Created entry:", created.category, "-", created.title)
     } catch (err) {
-      console.error("[Generate] Failed to create entry:", entry.title, (err as Error).message)
+      console.error("[Generate] ✗ Failed to create entry:", entry.title, "-", (err as Error).message)
     }
   }
 
-  // 7. Mark all processed records
+  // 8. Mark all processed records
   await markAsProcessed(records.map((r) => r.id))
 
-  console.log("[Generate] Done:", createdEntries.length, "entries created,", records.length, "records processed")
+  console.log("[Generate] Complete:", createdEntries.length, "entries created,", records.length, "records processed, method:", method)
 
   return {
     entries: createdEntries,
