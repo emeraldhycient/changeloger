@@ -139,6 +139,59 @@ async function handleReleaseEvent(payload: ReleaseEventPayload) {
 
 // ─── Installation events ──────────────────────────────────────────────────
 
+/**
+ * Find a workspace to link an installation to.
+ * Tries: GitHub OAuth user match → any workspace owner (fallback).
+ */
+async function findWorkspaceForSender(senderId?: number, senderLogin?: string): Promise<string | null> {
+  // Method 1: Match by GitHub OAuth providerUserId
+  if (senderId) {
+    const oauth = await prisma.oAuthAccount.findFirst({
+      where: { provider: "github", providerUserId: String(senderId) },
+      select: { userId: true },
+    })
+    if (oauth) {
+      const membership = await prisma.workspaceMember.findFirst({
+        where: { userId: oauth.userId, role: { in: ["owner", "admin"] } },
+      })
+      if (membership) return membership.workspaceId
+    }
+  }
+
+  // Method 2: Match by noreply email pattern (for users with private GitHub emails)
+  if (senderId && senderLogin) {
+    const user = await prisma.user.findFirst({
+      where: { email: { contains: `${senderId}+${senderLogin}` } },
+      select: { id: true },
+    })
+    if (user) {
+      const membership = await prisma.workspaceMember.findFirst({
+        where: { userId: user.id, role: { in: ["owner", "admin"] } },
+      })
+      if (membership) return membership.workspaceId
+    }
+  }
+
+  // Method 3: Any user with a GitHub OAuth account
+  const anyGithubOauth = await prisma.oAuthAccount.findFirst({
+    where: { provider: "github" },
+    select: { userId: true },
+  })
+  if (anyGithubOauth) {
+    const membership = await prisma.workspaceMember.findFirst({
+      where: { userId: anyGithubOauth.userId, role: { in: ["owner", "admin"] } },
+    })
+    if (membership) return membership.workspaceId
+  }
+
+  // Method 4: Any workspace owner at all (absolute last resort)
+  const anyOwner = await prisma.workspaceMember.findFirst({
+    where: { role: "owner" },
+    select: { workspaceId: true },
+  })
+  return anyOwner?.workspaceId || null
+}
+
 interface InstallationPayload {
   action: string
   installation: {
@@ -152,17 +205,14 @@ interface InstallationPayload {
     full_name: string
     private: boolean
   }>
-  sender: { login: string }
+  sender: { login: string; id: number }
 }
 
 async function handleInstallationEvent(payload: InstallationPayload) {
   const { action, installation } = payload
 
   if (action === "created") {
-    // New installation — create record if it doesn't exist
-    // The workspace linking happens via the OAuth callback, but we can
-    // update the account info here
-    const existing = await prisma.githubInstallation.findUnique({
+    let existing = await prisma.githubInstallation.findUnique({
       where: { installationId: installation.id },
     })
 
@@ -174,12 +224,28 @@ async function handleInstallationEvent(payload: InstallationPayload) {
           accountType: installation.target_type || "User",
         },
       })
-      console.log("[Webhook] Updated installation:", installation.id, installation.account.login)
-
-      // Sync initial repos if provided
-      if (payload.repositories && payload.repositories.length > 0) {
-        await syncReposFromPayload(existing.id, existing.workspaceId, payload.repositories)
+    } else {
+      // Auto-create — find the best workspace for this sender
+      const workspaceId = await findWorkspaceForSender(payload.sender.id, payload.sender.login)
+      if (workspaceId) {
+        existing = await prisma.githubInstallation.create({
+          data: {
+            installationId: installation.id,
+            workspaceId,
+            accountLogin: installation.account.login,
+            accountType: installation.target_type || "User",
+          },
+        })
+        console.log("[Webhook] Created installation:", installation.id, "→ workspace:", workspaceId)
+      } else {
+        console.log("[Webhook] No workspace found for sender:", payload.sender.login)
       }
+    }
+
+    // Sync initial repos if provided
+    if (existing && payload.repositories && payload.repositories.length > 0) {
+      await syncReposFromPayload(existing.id, existing.workspaceId, payload.repositories)
+      console.log("[Webhook] Synced", payload.repositories.length, "initial repos")
     }
   } else if (action === "deleted" || action === "suspend") {
     // Installation removed or suspended — deactivate repos
@@ -201,6 +267,7 @@ interface InstallationReposPayload {
   installation: {
     id: number
     account: { login: string }
+    target_type?: string
   }
   repository_selection: string
   repositories_added: Array<{
@@ -216,19 +283,34 @@ interface InstallationReposPayload {
     name: string
     full_name: string
   }>
+  sender: { login: string; id: number }
 }
 
 async function handleInstallationRepositoriesEvent(payload: InstallationReposPayload) {
-  const inst = await prisma.githubInstallation.findUnique({
+  let inst = await prisma.githubInstallation.findUnique({
     where: { installationId: payload.installation.id },
   })
 
+  // Auto-create the installation record if it doesn't exist
   if (!inst) {
-    console.log("[Webhook] No installation record for:", payload.installation.id, "— skipping repo sync")
-    return
+    const workspaceId = await findWorkspaceForSender(payload.sender.id, payload.sender.login)
+    if (!workspaceId) {
+      console.log("[Webhook] No installation record and no workspace found for sender:", payload.sender.login)
+      return
+    }
+
+    inst = await prisma.githubInstallation.create({
+      data: {
+        installationId: payload.installation.id,
+        workspaceId,
+        accountLogin: payload.installation.account.login,
+        accountType: payload.installation.target_type || "User",
+      },
+    })
+    console.log("[Webhook] Auto-created installation:", payload.installation.id, "→ workspace:", workspaceId)
   }
 
-  // Update account login
+  // Update account login if pending
   if (inst.accountLogin === "pending-sync" || inst.accountLogin === "syncing") {
     await prisma.githubInstallation.update({
       where: { id: inst.id },
