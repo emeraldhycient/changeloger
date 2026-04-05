@@ -205,9 +205,30 @@ export function ChangelogEntryCard({
               </DropdownMenuContent>
             </DropdownMenu>
 
-            <Badge variant="outline" className={cn("text-[10px]", impact.color)}>
-              {impact.label}
-            </Badge>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  type="button"
+                  className={cn(
+                    "inline-flex h-5 items-center rounded-none border px-2 text-[10px] font-medium transition-opacity hover:opacity-80",
+                    impact.color,
+                  )}
+                >
+                  {impact.label}
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start">
+                {Object.entries(IMPACT_CONFIG).map(([key, cfg]) => (
+                  <DropdownMenuItem
+                    key={key}
+                    onClick={() => onUpdate({ impact: key } as Partial<ReleaseEntry>)}
+                  >
+                    <span className={cn("mr-2 inline-block h-2 w-2 rounded-full", cfg.color.split(" ")[0])} />
+                    {cfg.label}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
 
             {/* Breaking toggle */}
             <button
