@@ -144,12 +144,12 @@ export default function WidgetsPage() {
   })
 
   const { data: repositories = [] } = useQuery<WidgetRepository[]>({
-    queryKey: ["repositories", currentWorkspaceId],
+    queryKey: ["widget-repositories", currentWorkspaceId],
     queryFn: async () => {
       const { data } = await apiClient.get(
-        `/api/repositories?workspaceId=${currentWorkspaceId}`,
+        `/api/repositories?workspaceId=${currentWorkspaceId}&limit=100`,
       )
-      return data
+      return data.repositories || data
     },
     enabled: hasWorkspace,
   })
