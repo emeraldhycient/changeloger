@@ -466,7 +466,7 @@ export default function WidgetsPage() {
                   const meta = getWidgetMeta(widget.type)
                   const Icon = meta.icon
                   const theme =
-                    (widget.config?.theme as string) || "auto"
+                    (widget.config?.mode as string) || (widget.config?.theme as string) || "auto"
 
                   return (
                     <Card key={widget.id}>
@@ -688,7 +688,7 @@ export default function WidgetsPage() {
                     {getEmbedSnippet(
                       snippetWidget.embedToken,
                       snippetWidget.type,
-                      (snippetWidget.config?.theme as string) || "auto",
+                      (snippetWidget.config?.mode as string) || (snippetWidget.config?.theme as string) || "auto",
                     )}
                   </code>
                 </div>
@@ -700,7 +700,7 @@ export default function WidgetsPage() {
                       getEmbedSnippet(
                         snippetWidget.embedToken,
                         snippetWidget.type,
-                        (snippetWidget.config?.theme as string) || "auto",
+                        (snippetWidget.config?.mode as string) || (snippetWidget.config?.theme as string) || "auto",
                       ),
                       `snippet-${snippetWidget.id}`,
                     )

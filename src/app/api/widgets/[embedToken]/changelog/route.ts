@@ -4,7 +4,7 @@ import { handleApiError, NotFoundError } from "@/lib/utils/errors"
 import { resolveTheme, type WidgetTheme } from "@/lib/widgets/theme"
 
 export async function GET(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ embedToken: string }> },
 ) {
   try {
@@ -18,6 +18,27 @@ export async function GET(
     })
 
     if (!widget) throw new NotFoundError("Widget not found")
+
+    // Enforce domain whitelist
+    if (widget.domains && widget.domains.length > 0) {
+      const origin = request.headers.get("origin") || request.headers.get("referer")
+      if (origin) {
+        try {
+          const hostname = new URL(origin).hostname
+          const allowed = widget.domains.some(
+            (d) => hostname === d || hostname.endsWith("." + d),
+          )
+          if (!allowed) {
+            return Response.json(
+              { error: "Origin not allowed" },
+              { status: 403, headers: { "Access-Control-Allow-Origin": "*" } },
+            )
+          }
+        } catch {
+          // Invalid origin URL — allow (could be local file, etc.)
+        }
+      }
+    }
 
     // Fetch published releases — from repo if bound, otherwise from workspace
     const whereClause = widget.repositoryId

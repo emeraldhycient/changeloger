@@ -31,10 +31,11 @@ function ColorField({
   // Normalize short hex to 6-char for the color picker
   const normalizeHex = (hex: string) => {
     if (!hex) return "#000000"
-    const clean = hex.replace("#", "")
+    const clean = hex.replace("#", "").replace(/[^0-9a-fA-F]/g, "")
     if (clean.length === 3) return "#" + clean.split("").map(c => c + c).join("")
-    if (clean.length === 6) return "#" + clean
-    return hex
+    if (clean.length === 4) return "#" + clean.slice(0, 3).split("").map(c => c + c).join("") // drop alpha
+    if (clean.length >= 6) return "#" + clean.slice(0, 6)
+    return "#000000"
   }
 
   return (
