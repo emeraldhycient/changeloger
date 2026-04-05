@@ -96,7 +96,7 @@ async function handlePushEvent(payload: PushEventPayload) {
     if (config.autoGenerate !== false) {
       // Find or create a draft release for this repo
       const existingDraft = await prisma.release.findFirst({
-        where: { repositoryId: repo.id, status: "draft" },
+        where: { workspaceId: repo.workspaceId, repositoryId: repo.id, status: "draft" },
         orderBy: { createdAt: "desc" },
       })
 
@@ -104,9 +104,18 @@ async function handlePushEvent(payload: PushEventPayload) {
       if (existingDraft) {
         releaseId = existingDraft.id
       } else {
-        // Auto-version: use date-based format
+        // Auto-version: use date-based format with dedup suffix
         const today = new Date()
-        const version = `${today.getFullYear()}.${today.getMonth() + 1}.${today.getDate()}`
+        let version = `${today.getFullYear()}.${today.getMonth() + 1}.${today.getDate()}`
+
+        // Check for version conflict and add suffix if needed
+        const conflict = await prisma.release.findUnique({
+          where: { workspaceId_version: { workspaceId: repo.workspaceId, version } },
+        })
+        if (conflict) {
+          version = `${version}.${today.getHours()}${today.getMinutes()}`
+        }
+
         const newRelease = await prisma.release.create({
           data: {
             workspaceId: repo.workspaceId,
@@ -116,6 +125,7 @@ async function handlePushEvent(payload: PushEventPayload) {
           },
         })
         releaseId = newRelease.id
+        console.log("[Webhook] Created draft release:", version)
       }
 
       const { generateEntriesFromChanges } = await import("@/lib/services/generate-entries")
