@@ -156,10 +156,6 @@ export default function WidgetsPage() {
 
   const { data: allReleases = [] } = useReleases(currentWorkspaceId, "published")
 
-  const scopedReleases = selectedScope === "all"
-    ? allReleases
-    : allReleases.filter((r) => r.repositoryId === selectedScope)
-
   // ── Mutations ───────────────────────────────────────────────────────────
 
   const createWidget = useMutation({
@@ -480,68 +476,17 @@ export default function WidgetsPage() {
                   onChange={(e) => setSelectedScope(e.target.value)}
                   className="flex h-9 w-full items-center border border-border bg-background px-3 text-sm outline-none focus:border-ring focus:ring-1 focus:ring-ring/50"
                 >
-                  <option value="all">
-                    All published changelogs ({allReleases.length})
-                  </option>
+                  <option value="all">All published changelogs ({allReleases.length})</option>
                   {repositories.length > 0 && (
-                    <optgroup label="Filter by Repository">
-                      {repositories.map((r) => {
-                        const count = allReleases.filter((rel) => rel.repositoryId === r.id).length
-                        return (
-                          <option key={r.id} value={r.id}>
-                            {r.fullName} ({count} {count === 1 ? "release" : "releases"})
-                          </option>
-                        )
-                      })}
+                    <optgroup label="By Repository">
+                      {repositories.map((r) => (
+                        <option key={`repo-${r.id}`} value={r.id}>
+                          {r.fullName}
+                        </option>
+                      ))}
                     </optgroup>
                   )}
                 </select>
-                <p className="text-xs text-muted-foreground">
-                  {selectedScope === "all"
-                    ? "Widget will show all published changelogs in this workspace."
-                    : `Widget will only show changelogs from ${repositories.find((r) => r.id === selectedScope)?.fullName ?? "this repository"}.`}
-                </p>
-              </div>
-
-              {/* Published changelogs list */}
-              <div className="space-y-2">
-                <label className="text-xs font-medium text-muted-foreground">
-                  Changelogs included ({scopedReleases.length})
-                </label>
-                {scopedReleases.length > 0 ? (
-                  <div className="max-h-32 space-y-1 overflow-y-auto rounded border border-border p-2">
-                    {scopedReleases.map((r) => (
-                      <div
-                        key={r.id}
-                        className="flex items-center justify-between text-xs"
-                      >
-                        <div className="flex items-center gap-2">
-                          <FileText className="h-3 w-3 text-muted-foreground" />
-                          <span className="font-medium">v{r.version}</span>
-                          {r.repository && (
-                            <span className="text-muted-foreground">
-                              {r.repository.fullName}
-                            </span>
-                          )}
-                          {!r.repository && (
-                            <span className="text-muted-foreground">Manual</span>
-                          )}
-                        </div>
-                        <span className="text-muted-foreground">
-                          {r._count?.entries ?? 0} entries
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="flex items-start gap-2 rounded border border-amber-500/20 bg-amber-500/5 p-3">
-                    <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-amber-500" />
-                    <p className="text-xs text-amber-700 dark:text-amber-400">
-                      No published changelogs yet. The widget will be empty until
-                      you publish a changelog from the editor.
-                    </p>
-                  </div>
-                )}
               </div>
 
               {/* Theme editor */}
