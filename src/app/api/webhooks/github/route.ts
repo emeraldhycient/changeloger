@@ -89,6 +89,48 @@ async function handlePushEvent(payload: PushEventPayload) {
       },
     })
   }
+
+  // Auto-generate changelog entries from the new commits
+  try {
+    const config = (repo.config as Record<string, unknown>) || {}
+    if (config.autoGenerate !== false) {
+      // Find or create a draft release for this repo
+      const existingDraft = await prisma.release.findFirst({
+        where: { repositoryId: repo.id, status: "draft" },
+        orderBy: { createdAt: "desc" },
+      })
+
+      let releaseId: string
+      if (existingDraft) {
+        releaseId = existingDraft.id
+      } else {
+        // Auto-version: use date-based format
+        const today = new Date()
+        const version = `${today.getFullYear()}.${today.getMonth() + 1}.${today.getDate()}`
+        const newRelease = await prisma.release.create({
+          data: {
+            workspaceId: repo.workspaceId,
+            repositoryId: repo.id,
+            version,
+            status: "draft",
+          },
+        })
+        releaseId = newRelease.id
+      }
+
+      const { generateEntriesFromChanges } = await import("@/lib/services/generate-entries")
+      await generateEntriesFromChanges({
+        releaseId,
+        workspaceId: repo.workspaceId,
+        repositoryId: repo.id,
+        useAI: true,
+      })
+      console.log("[Webhook] Auto-generated entries for repo:", repo.fullName)
+    }
+  } catch (err) {
+    console.error("[Webhook] Auto-generation failed:", (err as Error).message)
+    // Don't fail the webhook — changes are already recorded
+  }
 }
 
 async function handleCreateEvent(payload: CreateEventPayload) {

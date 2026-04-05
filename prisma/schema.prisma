@@ -255,11 +255,13 @@ model ChangeRecord {
   authors      Json         @default("[]") @db.JsonB
   timestamp    DateTime
   metadata     Json         @default("{}") @db.JsonB
+  processedAt  DateTime?    @map("processed_at")
   createdAt    DateTime     @default(now()) @map("created_at")
 
   repository Repository @relation(fields: [repositoryId], references: [id], onDelete: Cascade)
 
   @@index([repositoryId])
+  @@index([processedAt])
   @@index([commitSha])
   @@index([timestamp])
   @@map("change_records")
