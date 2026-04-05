@@ -119,16 +119,16 @@ async function handlePushEvent(payload: PushEventPayload) {
       }
 
       const { generateEntriesFromChanges } = await import("@/lib/services/generate-entries")
-      await generateEntriesFromChanges({
+      const result = await generateEntriesFromChanges({
         releaseId,
         workspaceId: repo.workspaceId,
         repositoryId: repo.id,
-        useAI: true,
+        useAI: !!process.env.OPENAI_API_KEY,
       })
-      console.log("[Webhook] Auto-generated entries for repo:", repo.fullName)
+      console.log("[Webhook] Auto-generated", result.entries.length, "entries for repo:", repo.fullName, "method:", result.method, "processed:", result.processedCount)
     }
   } catch (err) {
-    console.error("[Webhook] Auto-generation failed:", (err as Error).message)
+    console.error("[Webhook] Auto-generation failed:", (err as Error).message, (err as Error).stack?.split("\n").slice(0, 3).join("\n"))
     // Don't fail the webhook — changes are already recorded
   }
 }
