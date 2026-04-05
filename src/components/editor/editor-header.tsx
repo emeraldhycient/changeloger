@@ -2,14 +2,22 @@
 
 import { useState, useRef, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { ArrowLeft, FileText, Send, GitBranch, Layers, Sparkles, Pencil } from "lucide-react"
+import { ArrowLeft, FileText, Send, GitBranch, Layers, Sparkles, Pencil, Trash2 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 import { PublishDialog } from "@/components/editor/publish-dialog"
 import { GenerateDialog } from "@/components/editor/generate-dialog"
-import type { Release } from "@/hooks/use-releases"
+import { useDeleteRelease, type Release } from "@/hooks/use-releases"
 import { apiClient } from "@/lib/api/client"
 
 interface EditorHeaderProps {
@@ -21,6 +29,8 @@ export function EditorHeader({ release, entryCount }: EditorHeaderProps) {
   const router = useRouter()
   const [publishOpen, setPublishOpen] = useState(false)
   const [generateOpen, setGenerateOpen] = useState(false)
+  const [deleteOpen, setDeleteOpen] = useState(false)
+  const deleteRelease = useDeleteRelease()
   const [editingVersion, setEditingVersion] = useState(false)
   const [versionDraft, setVersionDraft] = useState(release.version)
   const versionRef = useRef<HTMLInputElement>(null)
@@ -170,6 +180,18 @@ export function EditorHeader({ release, entryCount }: EditorHeaderProps) {
               Publish
             </Button>
           )}
+
+          {/* Delete draft */}
+          {isDraft && (
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              className="text-muted-foreground hover:text-destructive"
+              onClick={() => setDeleteOpen(true)}
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+            </Button>
+          )}
         </div>
       </div>
 
@@ -186,6 +208,38 @@ export function EditorHeader({ release, entryCount }: EditorHeaderProps) {
         onOpenChange={setGenerateOpen}
         release={release}
       />
+
+      {/* Delete confirmation */}
+      <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Delete Draft Release</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete <strong>v{release.version}</strong>? All
+              changelog entries in this draft will be permanently removed.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setDeleteOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              disabled={deleteRelease.isPending}
+              onClick={() => {
+                deleteRelease.mutate(release.id, {
+                  onSuccess: () => {
+                    setDeleteOpen(false)
+                    router.push("/dashboard/editor")
+                  },
+                })
+              }}
+            >
+              {deleteRelease.isPending ? "Deleting..." : "Delete Draft"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   )
 }

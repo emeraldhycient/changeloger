@@ -88,3 +88,16 @@ export function useCreateRelease() {
     },
   })
 }
+
+export function useDeleteRelease() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async (releaseId: string) => {
+      await apiClient.delete(`/api/releases/${releaseId}`)
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["releases"] })
+    },
+  })
+}

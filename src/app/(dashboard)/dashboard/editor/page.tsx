@@ -10,6 +10,7 @@ import {
   Calendar,
   Loader2,
   Layers,
+  Trash2,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
@@ -24,8 +25,9 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
+import { apiClient } from "@/lib/api/client"
 import { useWorkspaceStore } from "@/stores/workspace-store"
-import { useReleases, useCreateRelease, useRelease } from "@/hooks/use-releases"
+import { useReleases, useCreateRelease, useRelease, useDeleteRelease } from "@/hooks/use-releases"
 import { useEntries } from "@/hooks/use-changelog-entries"
 import { EditorHeader } from "@/components/editor/editor-header"
 import { EntryList } from "@/components/editor/entry-list"
@@ -112,7 +114,9 @@ function NewDraftDialog({
 function DraftListView() {
   const router = useRouter()
   const [newDraftOpen, setNewDraftOpen] = useState(false)
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string; version: string } | null>(null)
   const { currentWorkspaceId } = useWorkspaceStore()
+  const deleteRelease = useDeleteRelease()
 
   const { data: allDrafts = [], isLoading } = useReleases(currentWorkspaceId, "draft")
 
@@ -214,9 +218,22 @@ function DraftListView() {
                     </div>
                   </div>
 
-                  <Button variant="ghost" size="sm">
-                    Edit
-                  </Button>
+                  <div className="flex items-center gap-1">
+                    <Button variant="ghost" size="sm">
+                      Edit
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon-sm"
+                      className="text-muted-foreground hover:text-destructive"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        setDeleteTarget({ id: draft.id, version: draft.version })
+                      }}
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
                 </CardContent>
               </Card>
             )
@@ -225,6 +242,37 @@ function DraftListView() {
       )}
 
       <NewDraftDialog open={newDraftOpen} onOpenChange={setNewDraftOpen} />
+
+      {/* Delete confirmation dialog */}
+      <Dialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Delete Draft Release</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete <strong>v{deleteTarget?.version}</strong>? All
+              changelog entries in this draft will be permanently removed.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setDeleteTarget(null)}>
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              disabled={deleteRelease.isPending}
+              onClick={() => {
+                if (deleteTarget) {
+                  deleteRelease.mutate(deleteTarget.id, {
+                    onSuccess: () => setDeleteTarget(null),
+                  })
+                }
+              }}
+            >
+              {deleteRelease.isPending ? "Deleting..." : "Delete Draft"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
