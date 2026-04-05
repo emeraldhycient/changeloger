@@ -66,6 +66,7 @@ import { apiClient } from "@/lib/api/client"
 import { useWorkspaceStore } from "@/stores/workspace-store"
 import { useWorkspaces } from "@/hooks/use-workspaces"
 import { useReleases, type Release } from "@/hooks/use-releases"
+import { DEFAULT_LIGHT_THEME } from "@/lib/widgets/theme"
 
 // ─── Constants ──────────────────────────────────────────────────────────────
 
@@ -130,8 +131,8 @@ export default function WidgetsPage() {
   const [selectedType, setSelectedType] = useState<WidgetType>("page")
   const [selectedScope, setSelectedScope] = useState<string>("all") // "all" | repo ID
   const [themeConfig, setThemeConfig] = useState<Record<string, unknown>>({
+    ...DEFAULT_LIGHT_THEME,
     mode: "auto",
-    primaryColor: "#6366f1",
   })
   const [copied, setCopied] = useState<string | null>(null)
   const [snippetWidget, setSnippetWidget] = useState<Widget | null>(null)
@@ -244,7 +245,7 @@ export default function WidgetsPage() {
       // Reset form
       setSelectedType("page")
       setSelectedScope("all")
-      setThemeConfig({ mode: "auto", primaryColor: "#6366f1" })
+      setThemeConfig({ ...DEFAULT_LIGHT_THEME, mode: "auto" })
     },
   })
 
@@ -255,7 +256,7 @@ export default function WidgetsPage() {
   const [newDomain, setNewDomain] = useState("")
 
   const openEditSheet = (widget: Widget) => {
-    setEditThemeConfig(widget.config || { mode: "auto", primaryColor: "#6366f1" })
+    setEditThemeConfig({ ...DEFAULT_LIGHT_THEME, mode: "auto", ...(widget.config as Record<string, unknown> || {}) })
     setEditScope(widget.repositoryId || "all")
     setEditDomains(widget.domains || [])
     setNewDomain("")
@@ -332,7 +333,7 @@ export default function WidgetsPage() {
   const handleOpenCreate = () => {
     setSelectedType("page")
     setSelectedScope("all")
-    setThemeConfig({ mode: "auto", primaryColor: "#6366f1" })
+    setThemeConfig({ ...DEFAULT_LIGHT_THEME, mode: "auto" })
     setCreateOpen(true)
   }
 
