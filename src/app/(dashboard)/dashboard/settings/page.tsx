@@ -262,8 +262,14 @@ export default function SettingsPage() {
   const [deleteOpen, setDeleteOpen] = useState(false)
   const [deleteConfirm, setDeleteConfirm] = useState("")
   const [widgetThemeConfig, setWidgetThemeConfig] = useState<Record<string, unknown>>(
-    workspace?.widgetTheme || {}
+    (workspace?.widgetTheme as Record<string, unknown>) || {}
   )
+
+  // Sync theme config when workspace changes
+  const workspaceTheme = workspace?.widgetTheme
+  useState(() => {
+    if (workspaceTheme) setWidgetThemeConfig(workspaceTheme as Record<string, unknown>)
+  })
 
   const isFreePlan = (workspace?.plan || "free") === "free"
 
