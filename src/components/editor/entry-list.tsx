@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback } from "react"
+import { useCallback, useState } from "react"
 import {
   DndContext,
   closestCenter,
@@ -85,6 +85,7 @@ export function EntryList({ releaseId }: EntryListProps) {
   const updateEntry = useUpdateEntry()
   const deleteEntry = useDeleteEntry()
   const reorderEntries = useReorderEntries()
+  const [dndAnnouncement, setDndAnnouncement] = useState("")
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
@@ -105,6 +106,8 @@ export function EntryList({ releaseId }: EntryListProps) {
         releaseId,
         orderedIds: reordered.map((e) => e.id),
       })
+      const movedEntry = entries[oldIndex]
+      setDndAnnouncement(`Moved "${movedEntry.title}" from position ${oldIndex + 1} to ${newIndex + 1}`)
     },
     [entries, releaseId, reorderEntries],
   )
@@ -161,6 +164,7 @@ export function EntryList({ releaseId }: EntryListProps) {
 
   return (
     <div className="space-y-4">
+      <div aria-live="polite" className="sr-only">{dndAnnouncement}</div>
       <ScrollArea className="max-h-[calc(100vh-16rem)]">
         <DndContext
           sensors={sensors}
