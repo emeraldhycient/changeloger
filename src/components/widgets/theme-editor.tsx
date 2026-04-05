@@ -28,13 +28,25 @@ function ColorField({
   onChange: (v: string) => void
   disabled?: boolean
 }) {
+  // Normalize short hex to 6-char for the color picker
+  const normalizeHex = (hex: string) => {
+    if (!hex) return "#000000"
+    const clean = hex.replace("#", "")
+    if (clean.length === 3) return "#" + clean.split("").map(c => c + c).join("")
+    if (clean.length === 6) return "#" + clean
+    return hex
+  }
+
   return (
     <div className="flex items-center justify-between gap-3">
       <label className="text-xs text-muted-foreground shrink-0">{label}</label>
-      <div className="flex items-center gap-2">
-        <div
-          className="h-6 w-6 shrink-0 border border-border rounded"
-          style={{ backgroundColor: value || "transparent" }}
+      <div className="flex items-center gap-1.5">
+        <input
+          type="color"
+          value={normalizeHex(value)}
+          onChange={(e) => onChange(e.target.value)}
+          disabled={disabled}
+          className="h-6 w-6 shrink-0 cursor-pointer border-0 bg-transparent p-0"
         />
         <Input
           type="text"
@@ -101,10 +113,12 @@ export function ThemeEditor({ theme, onChange, locked = false, defaultOpen = fal
           <Palette className="h-3.5 w-3.5 text-primary" />
           Primary Color
         </label>
-        <div className="flex items-center gap-2">
-          <div
-            className="h-6 w-6 shrink-0 border border-border rounded"
-            style={{ backgroundColor: (theme.primaryColor as string) || "#6C63FF" }}
+        <div className="flex items-center gap-1.5">
+          <input
+            type="color"
+            value={(theme.primaryColor as string) || "#6C63FF"}
+            onChange={(e) => update("primaryColor", e.target.value)}
+            className="h-6 w-6 shrink-0 cursor-pointer border-0 bg-transparent p-0"
           />
           <Input
             type="text"
