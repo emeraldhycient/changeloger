@@ -663,10 +663,13 @@
         cfg.position = cfg.position || theme.triggerPosition || "bottom-right";
         cfg.triggerText = cfg.triggerText || theme.triggerText || "What's New";
 
-        // Inject scoped CSS using the full theme object
-        var styleEl = document.createElement("style");
-        styleEl.id = PREFIX + "-styles";
-        if (!document.getElementById(styleEl.id)) {
+        // Inject or update scoped CSS using the full theme object
+        var existingStyle = document.getElementById(PREFIX + "-styles");
+        if (existingStyle) {
+          existingStyle.textContent = buildCSS(theme);
+        } else {
+          var styleEl = document.createElement("style");
+          styleEl.id = PREFIX + "-styles";
           styleEl.textContent = buildCSS(theme);
           document.head.appendChild(styleEl);
         }

@@ -211,8 +211,9 @@ export default function WidgetsPage() {
       const { data } = await apiClient.patch(`/api/widgets/manage/${id}`, updates)
       return data as Widget
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["widgets", currentWorkspaceId] })
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["widgets", currentWorkspaceId] })
+      await queryClient.refetchQueries({ queryKey: ["widgets", currentWorkspaceId] })
       setDetailWidget(null)
     },
   })
