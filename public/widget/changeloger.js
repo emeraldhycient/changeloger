@@ -158,6 +158,7 @@
     "/* Changeloger Widget — Scoped Styles */\n" +
     "." + PREFIX + "-root *,." + PREFIX + "-root *::before,." + PREFIX + "-root *::after{box-sizing:border-box;margin:0;padding:0;}\n" +
     "." + PREFIX + "-root{font-family:" + fontFamily + ";font-size:" + fontSize + ";line-height:1.5;color:" + text + ";-webkit-font-smoothing:antialiased;}\n" +
+    "." + PREFIX + "-page{background:" + bg + ";padding:16px;border-radius:" + borderRadius + ";}\n" +
 
     /* ── Timeline (shared by page + modal body) ── */
     "." + PREFIX + "-timeline{padding:16px 0;}\n" +
