@@ -149,10 +149,13 @@ export default function ChangelogsPage() {
       )}
 
       {isLoading ? (
-        <div className="flex flex-col gap-3">
-          {Array.from({ length: 3 }).map((_, i) => (
-            <div key={i} className="h-20 animate-pulse rounded-lg bg-muted/50" />
-          ))}
+        <div role="status" aria-label="Loading content">
+          <span className="sr-only">Loading...</span>
+          <div className="flex flex-col gap-3">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <div key={i} className="h-20 animate-pulse rounded-lg bg-muted/50" />
+            ))}
+          </div>
         </div>
       ) : paginated.length === 0 ? (
         <div className="flex flex-col items-center justify-center border border-dashed py-16">

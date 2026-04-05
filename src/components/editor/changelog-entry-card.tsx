@@ -104,7 +104,7 @@ function InlineEditable({
       <button
         type="button"
         className={cn(
-          "w-full cursor-text text-left transition-colors hover:bg-muted/50 rounded px-1 -mx-1",
+          "w-full cursor-text text-left transition-colors hover:bg-muted/50 rounded px-1 -mx-1 focus:outline-none focus:ring-2 focus:ring-ring",
           !value && "text-muted-foreground italic",
           className,
         )}
@@ -166,6 +166,9 @@ export function ChangelogEntryCard({
         {/* Drag handle */}
         <div
           className="flex shrink-0 cursor-grab items-center text-muted-foreground/40 hover:text-muted-foreground active:cursor-grabbing"
+          aria-label="Drag to reorder"
+          role="button"
+          tabIndex={0}
           {...dragHandleProps}
         >
           <GripVertical className="h-4 w-4" />
@@ -288,6 +291,7 @@ export function ChangelogEntryCard({
           <Button
             variant="ghost"
             size="icon-xs"
+            aria-label="Delete entry"
             className="text-muted-foreground hover:text-destructive"
             onClick={onDelete}
           >

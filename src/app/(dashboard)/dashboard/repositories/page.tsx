@@ -256,10 +256,13 @@ function RepositoriesContent() {
 
       {/* Repo list */}
       {isLoading ? (
-        <div className="space-y-3">
-          {Array.from({ length: 5 }).map((_, i) => (
-            <div key={i} className="h-[72px] animate-pulse rounded-lg bg-muted/50" />
-          ))}
+        <div role="status" aria-label="Loading content">
+          <span className="sr-only">Loading...</span>
+          <div className="space-y-3">
+            {Array.from({ length: 5 }).map((_, i) => (
+              <div key={i} className="h-[72px] animate-pulse rounded-lg bg-muted/50" />
+            ))}
+          </div>
         </div>
       ) : repos.length === 0 ? (
         <div className="flex flex-col items-center justify-center rounded-lg border border-dashed py-16 text-center">

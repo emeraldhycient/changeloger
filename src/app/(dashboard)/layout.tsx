@@ -20,6 +20,9 @@ export default function DashboardLayout({
 
   return (
     <div className="flex h-screen overflow-hidden">
+      <a href="#main-content" className="sr-only focus:not-sr-only focus:absolute focus:z-50 focus:bg-background focus:px-4 focus:py-2 focus:text-sm focus:font-medium">
+        Skip to main content
+      </a>
       {/* Desktop Sidebar — fixed height, never scrolls with content */}
       <div className="hidden h-full shrink-0 md:block">
         <Sidebar
@@ -39,7 +42,7 @@ export default function DashboardLayout({
       {/* Main Content Area */}
       <div className="flex h-full flex-1 flex-col overflow-hidden">
         <Topbar onMobileMenuToggle={() => setMobileOpen(true)} />
-        <main className="flex-1 overflow-y-auto p-6">{children}</main>
+        <main id="main-content" className="flex-1 overflow-y-auto p-6">{children}</main>
       </div>
 
       {/* Global upgrade modal — triggered by 402 errors */}

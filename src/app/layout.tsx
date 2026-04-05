@@ -17,6 +17,7 @@ const fontMono = JetBrains_Mono({
 })
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://changeloger.dev"),
   title: {
     default: "Changeloger - Automated Changelog Generation",
     template: "%s | Changeloger",
@@ -38,12 +39,14 @@ export const metadata: Metadata = {
     title: "Changeloger - Automated Changelog Generation",
     description:
       "Automatically generate beautiful changelogs from your Git commits. AI-powered, collaborative, and embeddable.",
+    images: ["/screenshots/dashboard.png"],
   },
   twitter: {
     card: "summary_large_image",
     title: "Changeloger - Automated Changelog Generation",
     description:
       "Automatically generate beautiful changelogs from your Git commits.",
+    images: ["/screenshots/dashboard.png"],
   },
 }
 
