@@ -42,7 +42,7 @@
     return window.location.origin;
   })();
 
-  var CATEGORY_COLORS = {
+  var DEFAULT_CATEGORY_COLORS = {
     added:       { bg: "#ECFDF5", fg: "#065F46", dot: "#10B981" },
     fixed:       { bg: "#EFF6FF", fg: "#1E40AF", dot: "#3B82F6" },
     changed:     { bg: "#FFFBEB", fg: "#92400E", dot: "#F59E0B" },
@@ -52,6 +52,34 @@
     performance: { bg: "#ECFEFF", fg: "#155E75", dot: "#06B6D4" },
     breaking:    { bg: "#FEF2F2", fg: "#991B1B", dot: "#DC2626" }
   };
+
+  // Active category colors (updated when theme loads from API)
+  var CATEGORY_COLORS = JSON.parse(JSON.stringify(DEFAULT_CATEGORY_COLORS));
+
+  /** Hex to rgba with alpha. */
+  function hexToRgba(hex, alpha) {
+    var r = parseInt(hex.slice(1, 3), 16);
+    var g = parseInt(hex.slice(3, 5), 16);
+    var b = parseInt(hex.slice(5, 7), 16);
+    return "rgba(" + r + "," + g + "," + b + "," + alpha + ")";
+  }
+
+  /** Apply theme category color overrides to CATEGORY_COLORS. */
+  function applyCategoryColors(themeCategoryColors) {
+    if (!themeCategoryColors) return;
+    var cats = Object.keys(themeCategoryColors);
+    for (var i = 0; i < cats.length; i++) {
+      var cat = cats[i];
+      var color = themeCategoryColors[cat];
+      if (color && DEFAULT_CATEGORY_COLORS[cat]) {
+        CATEGORY_COLORS[cat] = {
+          bg: hexToRgba(color, 0.1),
+          fg: color,
+          dot: color
+        };
+      }
+    }
+  }
 
   var CATEGORY_LABELS = {
     added: "Added", fixed: "Fixed", changed: "Changed", removed: "Removed",
@@ -112,19 +140,24 @@
 
   // ─── Styles ───────────────────────────────────────────────────────────────
 
-  function buildCSS(primaryColor, theme) {
-    var isDark = theme === "dark" || (theme === "auto" && prefersDark());
-    var bg       = isDark ? "#1A1A2E" : "#FFFFFF";
-    var bgAlt    = isDark ? "#16213E" : "#F9FAFB";
-    var text     = isDark ? "#E2E8F0" : "#1E293B";
-    var textMute = isDark ? "#94A3B8" : "#64748B";
-    var border   = isDark ? "#334155" : "#E2E8F0";
+  function buildCSS(theme) {
+    var isDark = theme.mode === "dark" || (theme.mode === "auto" && prefersDark());
+    var bg       = theme.backgroundColor || (isDark ? "#1A1A2E" : "#FFFFFF");
+    var bgAlt    = theme.cardColor || (isDark ? "#16213E" : "#F9FAFB");
+    var text     = theme.textColor || (isDark ? "#E2E8F0" : "#1E293B");
+    var textMute = theme.mutedTextColor || (isDark ? "#94A3B8" : "#64748B");
+    var border   = theme.borderColor || (isDark ? "#334155" : "#E2E8F0");
     var shadow   = isDark ? "rgba(0,0,0,0.4)" : "rgba(0,0,0,0.08)";
+    var primaryColor = theme.primaryColor || "#6C63FF";
+    var borderRadius = (theme.borderRadius != null ? theme.borderRadius : 8) + "px";
+    var fontFamily = theme.fontFamily || "-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif";
+    var fontSize = (theme.fontSize || 14) + "px";
+    var entrySpacing = (theme.entrySpacing != null ? theme.entrySpacing : 8) + "px";
 
     return "\n" +
     "/* Changeloger Widget — Scoped Styles */\n" +
     "." + PREFIX + "-root *,." + PREFIX + "-root *::before,." + PREFIX + "-root *::after{box-sizing:border-box;margin:0;padding:0;}\n" +
-    "." + PREFIX + "-root{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;font-size:14px;line-height:1.5;color:" + text + ";-webkit-font-smoothing:antialiased;}\n" +
+    "." + PREFIX + "-root{font-family:" + fontFamily + ";font-size:" + fontSize + ";line-height:1.5;color:" + text + ";-webkit-font-smoothing:antialiased;}\n" +
 
     /* ── Timeline (shared by page + modal body) ── */
     "." + PREFIX + "-timeline{padding:16px 0;}\n" +
@@ -134,8 +167,8 @@
     "." + PREFIX + "-version{display:inline-flex;align-items:center;padding:3px 10px;border-radius:9999px;font-size:13px;font-weight:600;background:" + primaryColor + ";color:#fff;}\n" +
     "." + PREFIX + "-date{font-size:12px;color:" + textMute + ";}\n" +
     "." + PREFIX + "-repo{font-size:11px;color:" + textMute + ";background:" + bgAlt + ";padding:2px 8px;border-radius:4px;}\n" +
-    "." + PREFIX + "-entries{display:flex;flex-direction:column;gap:8px;}\n" +
-    "." + PREFIX + "-entry{display:flex;align-items:flex-start;gap:10px;padding:10px 14px;border-radius:8px;background:" + bgAlt + ";border:1px solid " + border + ";transition:box-shadow .15s,border-color .15s;cursor:default;}\n" +
+    "." + PREFIX + "-entries{display:flex;flex-direction:column;gap:" + entrySpacing + ";}\n" +
+    "." + PREFIX + "-entry{display:flex;align-items:flex-start;gap:10px;padding:10px 14px;border-radius:" + borderRadius + ";background:" + bgAlt + ";border:1px solid " + border + ";transition:box-shadow .15s,border-color .15s;cursor:default;}\n" +
     "." + PREFIX + "-entry:hover{box-shadow:0 2px 8px " + shadow + ";border-color:" + primaryColor + "30;}\n" +
     "." + PREFIX + "-entry-breaking{border-left:3px solid #EF4444;}\n" +
     "." + PREFIX + "-cat-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;margin-top:6px;}\n" +
@@ -174,7 +207,7 @@
     "." + PREFIX + "-badge-dot{display:inline-flex;align-items:center;justify-content:center;min-width:20px;height:20px;padding:0 5px;border-radius:9999px;background:" + primaryColor + ";color:#fff;font-size:11px;font-weight:700;cursor:pointer;border:2px solid " + bg + ";box-shadow:0 2px 6px " + shadow + ";transition:transform .15s;}\n" +
     "." + PREFIX + "-badge-dot:hover{transform:scale(1.15);}\n" +
     "." + PREFIX + "-badge-float{position:fixed;z-index:999998;}\n" +
-    "." + PREFIX + "-dropdown{position:absolute;z-index:1000000;width:320px;max-height:420px;background:" + bg + ";border:1px solid " + border + ";border-radius:12px;box-shadow:0 10px 40px " + shadow + ";overflow:hidden;opacity:0;transform:translateY(-8px) scale(.96);transition:opacity .2s,transform .2s;pointer-events:none;}\n" +
+    "." + PREFIX + "-dropdown{position:absolute;z-index:1000000;width:320px;max-height:420px;background:" + bg + ";border:1px solid " + border + ";border-radius:" + borderRadius + ";box-shadow:0 10px 40px " + shadow + ";overflow:hidden;opacity:0;transform:translateY(-8px) scale(.96);transition:opacity .2s,transform .2s;pointer-events:none;}\n" +
     "." + PREFIX + "-dropdown-open{opacity:1;transform:translateY(0) scale(1);pointer-events:auto;}\n" +
     "." + PREFIX + "-dropdown-right{right:0;top:calc(100% + 8px);}\n" +
     "." + PREFIX + "-dropdown-left{left:0;top:calc(100% + 8px);}\n" +
@@ -583,48 +616,67 @@
       token:        token,
       type:         scriptEl.getAttribute("data-type") || "page",
       target:       scriptEl.getAttribute("data-target") || null,
-      theme:        scriptEl.getAttribute("data-theme") || "auto",
-      primaryColor: scriptEl.getAttribute("data-primary-color") || "#6C63FF",
-      position:     scriptEl.getAttribute("data-position") || "bottom-right",
-      triggerText:  scriptEl.getAttribute("data-trigger-text") || "What's New",
+      position:     scriptEl.getAttribute("data-position") || null,
+      triggerText:  scriptEl.getAttribute("data-trigger-text") || null,
       maxReleases:  parseInt(scriptEl.getAttribute("data-max-releases"), 10) || 10,
       noAnalytics:  scriptEl.hasAttribute("data-no-analytics"),
       scriptEl:     scriptEl
     };
 
-    // Inject scoped CSS
-    var styleEl = document.createElement("style");
-    styleEl.id = PREFIX + "-styles";
-    if (!document.getElementById(styleEl.id)) {
-      styleEl.textContent = buildCSS(cfg.primaryColor, cfg.theme);
-      document.head.appendChild(styleEl);
-    }
-
-    // Listen for system dark mode changes when theme is auto
-    if (cfg.theme === "auto" && window.matchMedia) {
-      window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", function () {
-        var existing = document.getElementById(PREFIX + "-styles");
-        if (existing) existing.textContent = buildCSS(cfg.primaryColor, cfg.theme);
-      });
-    }
+    // Data attribute overrides for theme properties
+    var dataOverrides = {};
+    if (scriptEl.hasAttribute("data-theme")) dataOverrides.mode = scriptEl.getAttribute("data-theme");
+    if (scriptEl.hasAttribute("data-primary-color")) dataOverrides.primaryColor = scriptEl.getAttribute("data-primary-color");
+    if (scriptEl.hasAttribute("data-position")) dataOverrides.triggerPosition = scriptEl.getAttribute("data-position");
+    if (scriptEl.hasAttribute("data-trigger-text")) dataOverrides.triggerText = scriptEl.getAttribute("data-trigger-text");
 
     // Set up analytics
     var analytics = createAnalytics(token, cfg.noAnalytics);
     analytics.start();
 
-    // Fetch changelog data
+    // Fetch changelog data (now includes resolved theme)
     fetch(API_BASE + "/api/widgets/" + token + "/changelog")
       .then(function (res) {
         if (!res.ok) throw new Error("HTTP " + res.status);
         return res.json();
       })
       .then(function (data) {
-        // Merge server config with data attributes (data attributes win)
-        var serverPrimary = data.config && data.config.primaryColor;
-        if (serverPrimary && !scriptEl.hasAttribute("data-primary-color")) {
-          cfg.primaryColor = serverPrimary;
-          var existing = document.getElementById(PREFIX + "-styles");
-          if (existing) existing.textContent = buildCSS(cfg.primaryColor, cfg.theme);
+        // Build the final theme: API theme + data attribute overrides
+        var theme = data.theme || {
+          mode: "auto", primaryColor: "#6C63FF", backgroundColor: "#FFFFFF",
+          cardColor: "#F9FAFB", textColor: "#1E293B", mutedTextColor: "#64748B",
+          borderColor: "#E2E8F0", borderRadius: 8,
+          fontFamily: "-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif",
+          fontSize: 14, entrySpacing: 8
+        };
+
+        // Data attributes override API theme
+        var keys = Object.keys(dataOverrides);
+        for (var i = 0; i < keys.length; i++) {
+          theme[keys[i]] = dataOverrides[keys[i]];
+        }
+
+        // Apply category color overrides from theme
+        applyCategoryColors(theme.categoryColors);
+
+        // Resolve position and trigger text from theme if not set via data attrs
+        cfg.position = cfg.position || theme.triggerPosition || "bottom-right";
+        cfg.triggerText = cfg.triggerText || theme.triggerText || "What's New";
+
+        // Inject scoped CSS using the full theme object
+        var styleEl = document.createElement("style");
+        styleEl.id = PREFIX + "-styles";
+        if (!document.getElementById(styleEl.id)) {
+          styleEl.textContent = buildCSS(theme);
+          document.head.appendChild(styleEl);
+        }
+
+        // Listen for system dark mode changes when theme is auto
+        if (theme.mode === "auto" && window.matchMedia) {
+          window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", function () {
+            var existing = document.getElementById(PREFIX + "-styles");
+            if (existing) existing.textContent = buildCSS(theme);
+          });
         }
 
         var releases = (data.releases || []).slice(0, cfg.maxReleases);

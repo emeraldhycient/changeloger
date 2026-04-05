@@ -30,9 +30,11 @@ import {
   Crown,
   Loader2,
   Clock,
+  Palette,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useWorkspaceStore } from "@/stores/workspace-store"
+import { ThemeEditor } from "@/components/widgets/theme-editor"
 
 const GITHUB_APP_SLUG = process.env.NEXT_PUBLIC_GITHUB_APP_SLUG || "changeloger"
 
@@ -259,15 +261,32 @@ export default function SettingsPage() {
   const [nameValue, setNameValue] = useState("")
   const [deleteOpen, setDeleteOpen] = useState(false)
   const [deleteConfirm, setDeleteConfirm] = useState("")
+  const [widgetThemeConfig, setWidgetThemeConfig] = useState<Record<string, unknown>>(
+    workspace?.widgetTheme || {}
+  )
+
+  const isFreePlan = (workspace?.plan || "free") === "free"
 
   const updateWorkspace = useMutation({
-    mutationFn: async (data: { name?: string }) => {
+    mutationFn: async (data: { name?: string; widgetTheme?: Record<string, unknown> }) => {
       if (!workspace) return
       await apiClient.patch(`/api/workspaces/${workspace.id}`, data)
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["workspaces"] })
       setEditingName(false)
+    },
+  })
+
+  const saveWidgetTheme = useMutation({
+    mutationFn: async () => {
+      if (!workspace) return
+      await apiClient.patch(`/api/workspaces/${workspace.id}`, {
+        widgetTheme: widgetThemeConfig,
+      })
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["workspaces"] })
     },
   })
 
@@ -435,6 +454,39 @@ export default function SettingsPage() {
               Configure
             </Button>
           </div>
+        </CardContent>
+      </Card>
+
+      {/* Default Widget Theme */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Palette className="h-5 w-5" />
+            Default Widget Theme
+          </CardTitle>
+          <CardDescription>
+            Set default theme for new widgets. Individual widgets can override these settings.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <ThemeEditor
+            theme={widgetThemeConfig}
+            onChange={setWidgetThemeConfig}
+            locked={isFreePlan}
+          />
+          <Button
+            onClick={() => saveWidgetTheme.mutate()}
+            disabled={saveWidgetTheme.isPending || !workspace}
+          >
+            {saveWidgetTheme.isPending ? (
+              <>
+                <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                Saving...
+              </>
+            ) : (
+              "Save Theme"
+            )}
+          </Button>
         </CardContent>
       </Card>
 
