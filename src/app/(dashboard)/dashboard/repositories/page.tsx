@@ -35,26 +35,9 @@ import {
 import { apiClient } from "@/lib/api/client"
 import { useWorkspaceStore } from "@/stores/workspace-store"
 import { GitHubConnectButton } from "@/components/dashboard/github-connect-button"
+import type { Repository, RepoListResponse } from "@/types/models"
 
-// ─── Types ──────────────────────────────────────────────────────────────────
-
-interface Repository {
-  id: string
-  name: string
-  fullName: string
-  language: string | null
-  isActive: boolean
-  defaultBranch: string
-  createdAt: string
-  githubInstallation: { accountLogin: string; accountType: string }
-  _count: { releases: number; changeRecords: number }
-}
-
-interface RepoListResponse {
-  repositories: Repository[]
-  pagination: { page: number; limit: number; total: number; totalPages: number }
-  filters: { languages: string[] }
-}
+// ─── Constants ─────────────────────────────────────────────────────────────
 
 const ERROR_MESSAGES: Record<string, string> = {
   invalid_callback: "Invalid callback from GitHub. Please try connecting again.",
@@ -318,7 +301,7 @@ function RepositoriesContent() {
                         )}
                       </div>
                       <p className="text-sm text-muted-foreground">
-                        {repo._count.releases} releases &middot; {repo._count.changeRecords} changes &middot; {repo.defaultBranch}
+                        {repo._count?.releases ?? 0} releases &middot; {repo._count?.changeRecords ?? 0} changes &middot; {repo.defaultBranch}
                       </p>
                     </div>
                   </div>

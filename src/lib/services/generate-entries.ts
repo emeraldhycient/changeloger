@@ -4,6 +4,7 @@ import { parseConventionalCommit } from "@/lib/engines/commit-analyzer"
 import { COMMIT_TYPE_TO_CATEGORY } from "@/lib/engines/types"
 import type { RawCommit } from "@/lib/engines/types"
 import type { ChangeCategory, ImpactLevel } from "@prisma/client"
+import type { GenerateResult } from "@/types/models"
 
 interface GenerateOptions {
   releaseId: string
@@ -11,12 +12,6 @@ interface GenerateOptions {
   repositoryId?: string
   useAI?: boolean
   limit?: number
-}
-
-interface GenerateResult {
-  entries: Array<{ id: string; category: string; title: string }>
-  processedCount: number
-  method: "ai" | "rule-based"
 }
 
 interface PendingEntry {

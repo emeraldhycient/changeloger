@@ -17,7 +17,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { useAuth } from "@/hooks/use-auth"
-import { useWorkspaces } from "@/hooks/use-workspaces"
+import { useWorkspaces, type Workspace } from "@/hooks/use-workspaces"
 import { apiClient } from "@/lib/api/client"
 import {
   GitBranch,
@@ -66,17 +66,7 @@ const BILLING_PLANS = [
   },
 ]
 
-interface WorkspaceData {
-  id: string
-  name: string
-  slug: string
-  plan: string
-  polarCustomerId: string | null
-  polarSubscriptionId: string | null
-  trialEndsAt: string | null
-}
-
-function BillingSection({ workspace }: { workspace: WorkspaceData | undefined }) {
+function BillingSection({ workspace }: { workspace: Workspace | undefined }) {
   const [annual, setAnnual] = useState(false)
   const queryClient = useQueryClient()
   const currentPlan = workspace?.plan || "free"

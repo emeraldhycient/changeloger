@@ -31,32 +31,7 @@ import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import { apiClient } from "@/lib/api/client"
 import { useWorkspaceStore } from "@/stores/workspace-store"
-
-interface DashboardStats {
-  repos: number
-  activeRepos: number
-  drafts: number
-  published: number
-  archived: number
-  members: number
-  widgets: number
-  unprocessedChanges: number
-  totalChanges: number
-  processedChanges: number
-  totalEntries: number
-  unreviewedEntries: number
-  reviewedEntries: number
-  breakingEntries: number
-  recentEvents24h: number
-  recentDrafts: Array<{
-    id: string
-    version: string
-    repository: { name: string; fullName: string } | null
-    totalEntries: number
-    unreviewedEntries: number
-    updatedAt: string
-  }>
-}
+import type { DashboardStats } from "@/types/models"
 
 const gettingStartedCards = [
   {

@@ -5,17 +5,7 @@ import { Badge } from "@/components/ui/badge"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { GitBranch, Settings, Circle } from "lucide-react"
-
-interface Repository {
-  id: string
-  name: string
-  fullName: string
-  language: string | null
-  isActive: boolean
-  defaultBranch: string
-  githubInstallation: { accountLogin: string }
-  _count: { releases: number; changeRecords: number }
-}
+import type { Repository } from "@/types/models"
 
 export function RepositoryList({ repositories }: { repositories: Repository[] }) {
   if (repositories.length === 0) {
@@ -50,7 +40,7 @@ export function RepositoryList({ repositories }: { repositories: Repository[] })
                   )}
                 </div>
                 <p className="text-sm text-muted-foreground">
-                  {repo._count.releases} releases &middot; {repo._count.changeRecords} changes detected
+                  {repo._count?.releases ?? 0} releases &middot; {repo._count?.changeRecords ?? 0} changes detected
                 </p>
               </div>
             </div>

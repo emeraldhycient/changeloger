@@ -97,19 +97,9 @@ type ThemeValue = (typeof THEMES)[number]["value"]
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
-interface Widget {
-  id: string
-  type: WidgetType
-  embedToken: string
-  workspaceId: string
-  repositoryId: string | null
-  config: Record<string, unknown>
-  domains: string[]
-  createdAt: string
-  repository: { id: string; name: string; fullName: string } | null
-}
+import type { Widget } from "@/types/models"
 
-interface Repository {
+interface WidgetRepository {
   id: string
   name: string
   fullName: string
@@ -161,7 +151,7 @@ export default function WidgetsPage() {
     enabled: hasWorkspace,
   })
 
-  const { data: repositories = [] } = useQuery<Repository[]>({
+  const { data: repositories = [] } = useQuery<WidgetRepository[]>({
     queryKey: ["repositories", currentWorkspaceId],
     queryFn: async () => {
       const { data } = await apiClient.get(
