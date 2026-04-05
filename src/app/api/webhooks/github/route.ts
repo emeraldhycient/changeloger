@@ -3,6 +3,24 @@ import { verifyWebhookSignature, parseEventType } from "@/lib/github/webhooks"
 import { prisma } from "@/lib/db/prisma"
 import type { PushEventPayload, CreateEventPayload, ReleaseEventPayload } from "@/lib/github/types"
 
+/** Extract commit body from full message. Handles multi-line commit messages. */
+function extractCommitBody(message: string): string | null {
+  const lines = message.split("\n")
+  if (lines.length <= 1) return null
+
+  // Find the first blank line (separator between subject and body)
+  const blankIndex = lines.findIndex((line, i) => i > 0 && line.trim() === "")
+  if (blankIndex === -1) {
+    // No blank separator — everything after first line is body
+    const rest = lines.slice(1).join("\n").trim()
+    return rest || null
+  }
+
+  // Body starts after the blank line
+  const body = lines.slice(blankIndex + 1).join("\n").trim()
+  return body || null
+}
+
 export async function POST(request: NextRequest) {
   const secret = process.env.GITHUB_APP_WEBHOOK_SECRET
   if (!secret) {
@@ -75,7 +93,7 @@ async function handlePushEvent(payload: PushEventPayload) {
         source: "commit",
         commitSha: commit.id,
         subject: commit.message.split("\n")[0],
-        body: commit.message.split("\n").slice(2).join("\n") || null,
+        body: extractCommitBody(commit.message),
         filesChanged: {
           added: commit.added,
           removed: commit.removed,

@@ -53,15 +53,19 @@ export async function generateEntriesFromChanges(options: GenerateOptions): Prom
 
   // 2. Create ONE entry per commit (no grouping — each commit is its own entry)
   const pendingEntries: PendingEntry[] = records.map((r) => {
-    const parsed = parseConventionalCommit(r.subject + (r.body ? "\n\n" + r.body : ""))
+    const fullMessage = r.body ? `${r.subject}\n\n${r.body}` : r.subject
+    const parsed = parseConventionalCommit(fullMessage)
     const type = parsed.type || "changed"
     const category = COMMIT_TYPE_TO_CATEGORY[type] || "changed"
     const authors = r.authors as Array<{ name: string; email: string }> | null
 
+    // Use the commit body as the entry description
+    const description = r.body?.trim() || parsed.body?.trim() || null
+
     return {
       category,
       title: parsed.subject,
-      description: parsed.body || r.body || null,
+      description,
       impact: parsed.breaking ? "critical" : "medium",
       breaking: parsed.breaking,
       authors: authors ?? [],
