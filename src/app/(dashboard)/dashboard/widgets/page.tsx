@@ -39,10 +39,7 @@ import {
   Calendar,
   GitBranch,
   Layers,
-  Palette,
-  Sun,
-  Moon,
-  Monitor,
+
   FileText,
   AlertCircle,
   Pencil,
@@ -51,6 +48,7 @@ import {
 } from "lucide-react"
 import { Separator } from "@/components/ui/separator"
 import { cn } from "@/lib/utils"
+import { ThemeEditor } from "@/components/widgets/theme-editor"
 import { apiClient } from "@/lib/api/client"
 import { useWorkspaceStore } from "@/stores/workspace-store"
 import { useWorkspaces } from "@/hooks/use-workspaces"
@@ -87,14 +85,6 @@ const WIDGET_TYPES = [
 
 type WidgetType = (typeof WIDGET_TYPES)[number]["type"]
 
-const THEMES = [
-  { value: "light", label: "Light", icon: Sun },
-  { value: "dark", label: "Dark", icon: Moon },
-  { value: "auto", label: "Auto", icon: Monitor },
-] as const
-
-type ThemeValue = (typeof THEMES)[number]["value"]
-
 // ─── Types ──────────────────────────────────────────────────────────────────
 
 import type { Widget } from "@/types/models"
@@ -126,8 +116,10 @@ export default function WidgetsPage() {
   const [createOpen, setCreateOpen] = useState(false)
   const [selectedType, setSelectedType] = useState<WidgetType>("page")
   const [selectedScope, setSelectedScope] = useState<string>("all") // "all" | repo ID
-  const [selectedTheme, setSelectedTheme] = useState<ThemeValue>("auto")
-  const [primaryColor, setPrimaryColor] = useState("#6366f1")
+  const [themeConfig, setThemeConfig] = useState<Record<string, unknown>>({
+    mode: "auto",
+    primaryColor: "#6366f1",
+  })
   const [copied, setCopied] = useState<string | null>(null)
   const [snippetWidget, setSnippetWidget] = useState<Widget | null>(null)
   const [detailWidget, setDetailWidget] = useState<Widget | null>(null)
@@ -196,21 +188,18 @@ export default function WidgetsPage() {
       // Reset form
       setSelectedType("page")
       setSelectedScope("all")
-      setSelectedTheme("auto")
-      setPrimaryColor("#6366f1")
+      setThemeConfig({ mode: "auto", primaryColor: "#6366f1" })
     },
   })
 
   // ── Edit state ──────────────────────────────────────────────────────────
-  const [editTheme, setEditTheme] = useState<ThemeValue>("auto")
-  const [editColor, setEditColor] = useState("#6366f1")
+  const [editThemeConfig, setEditThemeConfig] = useState<Record<string, unknown>>({})
   const [editScope, setEditScope] = useState<string>("all")
   const [editDomains, setEditDomains] = useState<string[]>([])
   const [newDomain, setNewDomain] = useState("")
 
   const openEditSheet = (widget: Widget) => {
-    setEditTheme((widget.config?.theme as ThemeValue) || "auto")
-    setEditColor((widget.config?.primaryColor as string) || "#6366f1")
+    setEditThemeConfig(widget.config || { mode: "auto", primaryColor: "#6366f1" })
     setEditScope(widget.repositoryId || "all")
     setEditDomains(widget.domains || [])
     setNewDomain("")
@@ -244,7 +233,7 @@ export default function WidgetsPage() {
     if (!detailWidget) return
     updateWidget.mutate({
       id: detailWidget.id,
-      config: { theme: editTheme, primaryColor: editColor },
+      config: editThemeConfig,
       domains: editDomains,
       repositoryId: editScope !== "all" ? editScope : null,
     })
@@ -279,18 +268,14 @@ export default function WidgetsPage() {
     createWidget.mutate({
       type: selectedType,
       repositoryId: selectedScope !== "all" ? selectedScope : undefined,
-      config: {
-        theme: selectedTheme,
-        primaryColor,
-      },
+      config: themeConfig,
     })
   }
 
   const handleOpenCreate = () => {
     setSelectedType("page")
     setSelectedScope("all")
-    setSelectedTheme("auto")
-    setPrimaryColor("#6366f1")
+    setThemeConfig({ mode: "auto", primaryColor: "#6366f1" })
     setCreateOpen(true)
   }
 
@@ -558,49 +543,12 @@ export default function WidgetsPage() {
                 )}
               </div>
 
-              {/* Theme selector */}
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Theme</label>
-                <div className="flex gap-3">
-                  {THEMES.map((t) => (
-                    <button
-                      key={t.value}
-                      type="button"
-                      onClick={() => setSelectedTheme(t.value)}
-                      className={cn(
-                        "flex items-center gap-2 border px-4 py-2 text-sm transition-colors",
-                        selectedTheme === t.value
-                          ? "border-primary ring-2 ring-primary/20"
-                          : "border-border hover:border-muted-foreground/30",
-                      )}
-                    >
-                      <t.icon className="h-4 w-4" />
-                      {t.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Primary color */}
-              <div className="space-y-2">
-                <label className="text-sm font-medium">
-                  <Palette className="mr-1.5 inline h-3.5 w-3.5" />
-                  Primary Color
-                </label>
-                <div className="flex items-center gap-3">
-                  <div
-                    className="h-9 w-9 shrink-0 border border-border"
-                    style={{ backgroundColor: primaryColor }}
-                  />
-                  <Input
-                    type="text"
-                    value={primaryColor}
-                    onChange={(e) => setPrimaryColor(e.target.value)}
-                    placeholder="#6366f1"
-                    className="h-9 w-36 font-mono text-sm"
-                  />
-                </div>
-              </div>
+              {/* Theme editor */}
+              <ThemeEditor
+                theme={themeConfig}
+                onChange={setThemeConfig}
+                locked={isFreePlan}
+              />
             </div>
 
             <DialogFooter className="pt-2">
@@ -707,7 +655,7 @@ export default function WidgetsPage() {
                       </label>
                       <div className="rounded border border-border bg-muted/50 p-3">
                         <code className="block whitespace-pre-wrap break-all text-[11px] leading-relaxed">
-                          {getEmbedSnippet(detailWidget.embedToken, detailWidget.type, editTheme)}
+                          {getEmbedSnippet(detailWidget.embedToken, detailWidget.type, (editThemeConfig.mode as string) || "auto")}
                         </code>
                       </div>
                       <Button
@@ -716,7 +664,7 @@ export default function WidgetsPage() {
                         className="w-full gap-2"
                         onClick={() =>
                           handleCopy(
-                            getEmbedSnippet(detailWidget.embedToken, detailWidget.type, editTheme),
+                            getEmbedSnippet(detailWidget.embedToken, detailWidget.type, (editThemeConfig.mode as string) || "auto"),
                             `detail-${detailWidget.id}`,
                           )
                         }
@@ -758,49 +706,12 @@ export default function WidgetsPage() {
                       </select>
                     </div>
 
-                    {/* Theme */}
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium">Theme</label>
-                      <div className="flex gap-2">
-                        {THEMES.map((t) => (
-                          <button
-                            key={t.value}
-                            type="button"
-                            onClick={() => setEditTheme(t.value)}
-                            className={cn(
-                              "flex items-center gap-2 border px-3 py-2 text-xs transition-colors",
-                              editTheme === t.value
-                                ? "border-primary ring-2 ring-primary/20"
-                                : "border-border hover:border-muted-foreground/30",
-                            )}
-                          >
-                            <t.icon className="h-3.5 w-3.5" />
-                            {t.label}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* Primary color */}
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium">
-                        <Palette className="mr-1.5 inline h-3.5 w-3.5" />
-                        Primary Color
-                      </label>
-                      <div className="flex items-center gap-3">
-                        <div
-                          className="h-9 w-9 shrink-0 border border-border"
-                          style={{ backgroundColor: editColor }}
-                        />
-                        <Input
-                          type="text"
-                          value={editColor}
-                          onChange={(e) => setEditColor(e.target.value)}
-                          placeholder="#6366f1"
-                          className="h-9 w-32 font-mono text-xs"
-                        />
-                      </div>
-                    </div>
+                    {/* Theme editor */}
+                    <ThemeEditor
+                      theme={editThemeConfig}
+                      onChange={setEditThemeConfig}
+                      locked={isFreePlan}
+                    />
 
                     {/* Domain whitelist */}
                     <div className="space-y-2">

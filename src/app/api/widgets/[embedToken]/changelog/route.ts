@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server"
 import { prisma } from "@/lib/db/prisma"
 import { handleApiError, NotFoundError } from "@/lib/utils/errors"
+import { resolveTheme, type WidgetTheme } from "@/lib/widgets/theme"
 
 export async function GET(
   _request: NextRequest,
@@ -12,7 +13,7 @@ export async function GET(
     const widget = await prisma.widget.findUnique({
       where: { embedToken },
       include: {
-        workspace: { select: { name: true, slug: true } },
+        workspace: { select: { name: true, slug: true, widgetTheme: true } },
       },
     })
 
@@ -46,10 +47,16 @@ export async function GET(
       })),
     }))
 
+    // Resolve theme: workspace defaults + widget config overrides
+    const workspaceTheme = (widget.workspace.widgetTheme || {}) as Partial<WidgetTheme>
+    const widgetConfig = (widget.config || {}) as Record<string, unknown>
+    const theme = resolveTheme(workspaceTheme, widgetConfig)
+
     return Response.json({
       config: widget.config,
+      theme,
       type: widget.type,
-      workspace: widget.workspace,
+      workspace: { name: widget.workspace.name, slug: widget.workspace.slug },
       releases: formattedReleases,
     }, {
       headers: {
