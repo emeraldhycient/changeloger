@@ -31,6 +31,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Badge } from "@/components/ui/badge"
 import { apiClient } from "@/lib/api/client"
 import { useWorkspaceStore } from "@/stores/workspace-store"
+import type { AnalyticsSummary } from "@/types/models"
 
 ChartJS.register(
   CategoryScale,
@@ -43,25 +44,6 @@ ChartJS.register(
   Filler,
 )
 import { cn } from "@/lib/utils"
-
-interface AnalyticsSummary {
-  totalViews: number
-  totalVisitors: number
-  totalClicks: number
-  avgReadDepth: number
-  totalEvents: number
-  recentEvents24h: number
-  dailyData: Array<{
-    date: string
-    pageViews: number
-    uniqueVisitors: number
-    clicks: number
-  }>
-  topEntries: Array<{ entryId: string; clicks: number; title: string; category: string }>
-  trafficSources: Array<{ source: string; count: number; percentage: number }>
-  scrollDepthDistribution: { 25: number; 50: number; 75: number; 100: number }
-  widgetBreakdown: Array<{ widgetId: string; type: string; views: number }>
-}
 
 const CATEGORY_COLORS: Record<string, string> = {
   added: "bg-emerald-500",
