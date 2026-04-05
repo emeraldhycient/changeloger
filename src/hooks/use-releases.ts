@@ -84,7 +84,8 @@ export function useCreateRelease() {
       return data as Release
     },
     onSuccess: (_data, variables) => {
-      queryClient.invalidateQueries({ queryKey: ["releases", variables.workspaceId] })
+      queryClient.invalidateQueries({ queryKey: ["releases"] })
+      queryClient.invalidateQueries({ queryKey: ["dashboard-stats"] })
     },
   })
 }
@@ -98,6 +99,7 @@ export function useDeleteRelease() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["releases"] })
+      queryClient.invalidateQueries({ queryKey: ["dashboard-stats"] })
     },
   })
 }

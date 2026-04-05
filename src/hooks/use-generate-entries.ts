@@ -27,6 +27,8 @@ export function useGenerateEntries() {
       queryClient.invalidateQueries({ queryKey: ["release", variables.releaseId] })
       queryClient.invalidateQueries({ queryKey: ["releases"] })
       queryClient.invalidateQueries({ queryKey: ["unprocessed-count", variables.releaseId] })
+      queryClient.invalidateQueries({ queryKey: ["dashboard-stats"] })
+      queryClient.invalidateQueries({ queryKey: ["activity-changes"] })
     },
   })
 }

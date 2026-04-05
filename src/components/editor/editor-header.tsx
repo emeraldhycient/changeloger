@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from "react"
 import { useRouter } from "next/navigation"
+import { useQueryClient } from "@tanstack/react-query"
 import { ArrowLeft, FileText, Send, GitBranch, Layers, Sparkles, Pencil, Trash2 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
@@ -27,6 +28,7 @@ interface EditorHeaderProps {
 
 export function EditorHeader({ release, entryCount }: EditorHeaderProps) {
   const router = useRouter()
+  const queryClient = useQueryClient()
   const [publishOpen, setPublishOpen] = useState(false)
   const [generateOpen, setGenerateOpen] = useState(false)
   const [deleteOpen, setDeleteOpen] = useState(false)
@@ -51,8 +53,8 @@ export function EditorHeader({ release, entryCount }: EditorHeaderProps) {
     const trimmed = versionDraft.trim()
     if (trimmed && trimmed !== release.version) {
       await apiClient.put(`/api/releases/${release.id}`, { newVersion: trimmed })
-      // URL stays the same since we use release ID
-      router.refresh()
+      queryClient.invalidateQueries({ queryKey: ["release", release.id] })
+      queryClient.invalidateQueries({ queryKey: ["releases"] })
     } else {
       setVersionDraft(release.version)
     }

@@ -84,6 +84,9 @@ export default function RepositoryDetailPage({
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["repositories"] })
+      queryClient.invalidateQueries({ queryKey: ["releases"] })
+      queryClient.invalidateQueries({ queryKey: ["widgets"] })
+      queryClient.invalidateQueries({ queryKey: ["dashboard-stats"] })
       router.push("/dashboard/repositories")
     },
   })
