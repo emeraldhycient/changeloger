@@ -9,6 +9,7 @@ export interface Workspace {
   polarCustomerId: string | null
   polarSubscriptionId: string | null
   trialEndsAt: string | null
+  widgetTheme?: Record<string, unknown>
   _count: { members: number; repositories: number }
 }
 

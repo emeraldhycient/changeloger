@@ -10,6 +10,7 @@ interface PlanLimits {
   hasAuditLog: boolean
   hasApiAccess: boolean
   hasPerRepoAccess: boolean
+  hasWidgetCustomization: boolean
 }
 
 export const PLAN_LIMITS: Record<WorkspacePlan, PlanLimits> = {
@@ -23,6 +24,7 @@ export const PLAN_LIMITS: Record<WorkspacePlan, PlanLimits> = {
     hasAuditLog: false,
     hasApiAccess: false,
     hasPerRepoAccess: false,
+    hasWidgetCustomization: false,
   },
   pro: {
     maxRepositories: 5,
@@ -34,6 +36,7 @@ export const PLAN_LIMITS: Record<WorkspacePlan, PlanLimits> = {
     hasAuditLog: false,
     hasApiAccess: true,
     hasPerRepoAccess: false,
+    hasWidgetCustomization: true,
   },
   team: {
     maxRepositories: Infinity,
@@ -45,6 +48,7 @@ export const PLAN_LIMITS: Record<WorkspacePlan, PlanLimits> = {
     hasAuditLog: true,
     hasApiAccess: true,
     hasPerRepoAccess: true,
+    hasWidgetCustomization: true,
   },
   enterprise: {
     maxRepositories: Infinity,
@@ -56,6 +60,7 @@ export const PLAN_LIMITS: Record<WorkspacePlan, PlanLimits> = {
     hasAuditLog: true,
     hasApiAccess: true,
     hasPerRepoAccess: true,
+    hasWidgetCustomization: true,
   },
 }
 
