@@ -74,7 +74,7 @@ export async function generateEntriesFromChanges(options: GenerateOptions): Prom
   let finalEntries = pendingEntries
   let method: "ai" | "rule-based" = "rule-based"
 
-  if (useAI && process.env.OPENAI_API_KEY && records.length >= 3) {
+  if (useAI && process.env.OPENAI_API_KEY) {
     try {
       const { enforceAIGenerationLimit, incrementAIUsage } = await import("@/lib/middleware/plan-enforcement")
       await enforceAIGenerationLimit(workspaceId, pendingEntries.length)
@@ -104,7 +104,7 @@ export async function generateEntriesFromChanges(options: GenerateOptions): Prom
       })
 
       const aiEntries = await ai.summarizeCommits(parsedCommits)
-      console.log("[Generate] AI produced", aiEntries.length, "entries")
+      console.log("[Generate] AI produced", aiEntries.length, "entries", aiEntries)
 
       // AI may return fewer entries (grouped) — we keep our 1-per-commit approach
       // but use AI titles if the count matches
