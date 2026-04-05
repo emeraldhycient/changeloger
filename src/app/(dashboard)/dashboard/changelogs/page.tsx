@@ -185,9 +185,9 @@ export default function ChangelogsPage() {
         </div>
       ) : (
         <>
-          <div className="space-y-3">
+          <ul role="list" className="space-y-3">
             {paginated.map((cl) => (
-              <Card key={cl.id}>
+              <li key={cl.id}><Card>
                 <CardContent className="flex items-center justify-between p-4">
                   <div className="flex items-center gap-4">
                     <div className="flex h-10 w-10 items-center justify-center bg-primary/10">
@@ -224,9 +224,9 @@ export default function ChangelogsPage() {
                     <Link href={`/dashboard/editor?release=${cl.id}`}>View</Link>
                   </Button>
                 </CardContent>
-              </Card>
+              </Card></li>
             ))}
-          </div>
+          </ul>
 
           {totalPages > 1 && (
             <div className="mt-4 flex items-center justify-between">
@@ -234,11 +234,11 @@ export default function ChangelogsPage() {
                 Showing {(safePage - 1) * PER_PAGE + 1}–{Math.min(safePage * PER_PAGE, filtered.length)} of {filtered.length}
               </p>
               <div className="flex items-center gap-2">
-                <Button variant="outline" size="sm" disabled={safePage <= 1} onClick={() => setPage(safePage - 1)}>
+                <Button variant="outline" size="sm" aria-label="Previous page" disabled={safePage <= 1} onClick={() => setPage(safePage - 1)}>
                   <ChevronLeft className="h-4 w-4" />
                 </Button>
-                <span className="text-sm text-muted-foreground">{safePage} / {totalPages}</span>
-                <Button variant="outline" size="sm" disabled={safePage >= totalPages} onClick={() => setPage(safePage + 1)}>
+                <span className="text-sm text-muted-foreground" role="status" aria-label={`Page ${safePage} of ${totalPages}`}>{safePage} / {totalPages}</span>
+                <Button variant="outline" size="sm" aria-label="Next page" disabled={safePage >= totalPages} onClick={() => setPage(safePage + 1)}>
                   <ChevronRight className="h-4 w-4" />
                 </Button>
               </div>
