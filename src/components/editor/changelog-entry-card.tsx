@@ -15,6 +15,9 @@ import {
   Wrench,
   BookOpen,
   Bug,
+  CheckCircle2,
+  Circle,
+  ToggleLeft,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Card, CardContent } from "@/components/ui/card"
@@ -206,19 +209,39 @@ export function ChangelogEntryCard({
               {impact.label}
             </Badge>
 
-            {entry.breaking && (
-              <Badge variant="destructive" className="text-[10px]">
-                <AlertTriangle className="mr-0.5 h-2.5 w-2.5" />
-                Breaking
-              </Badge>
-            )}
+            {/* Breaking toggle */}
+            <button
+              type="button"
+              onClick={() => onUpdate({ breaking: !entry.breaking } as Partial<ReleaseEntry>)}
+              className={cn(
+                "inline-flex h-5 items-center gap-1 rounded-none px-2 text-[10px] font-medium transition-colors",
+                entry.breaking
+                  ? "bg-red-600/15 text-red-700 dark:text-red-400"
+                  : "bg-muted text-muted-foreground hover:bg-red-600/10 hover:text-red-600",
+              )}
+            >
+              <AlertTriangle className="h-2.5 w-2.5" />
+              Breaking
+            </button>
 
-            {entry.reviewed && (
-              <Badge variant="secondary" className="text-[10px]">
-                <FileText className="mr-0.5 h-2.5 w-2.5" />
-                Reviewed
-              </Badge>
-            )}
+            {/* Review toggle */}
+            <button
+              type="button"
+              onClick={() => onUpdate({ reviewed: !entry.reviewed } as Partial<ReleaseEntry>)}
+              className={cn(
+                "inline-flex h-5 items-center gap-1 rounded-none px-2 text-[10px] font-medium transition-colors",
+                entry.reviewed
+                  ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400"
+                  : "bg-muted text-muted-foreground hover:bg-emerald-500/10 hover:text-emerald-600",
+              )}
+            >
+              {entry.reviewed ? (
+                <CheckCircle2 className="h-2.5 w-2.5" />
+              ) : (
+                <Circle className="h-2.5 w-2.5" />
+              )}
+              {entry.reviewed ? "Reviewed" : "Mark Reviewed"}
+            </button>
           </div>
 
           {/* Title */}
