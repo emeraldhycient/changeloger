@@ -21,30 +21,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Separator } from "@/components/ui/separator"
 import { Switch } from "@/components/ui/switch"
 import { apiClient } from "@/lib/api/client"
-
-interface Repository {
-  id: string
-  name: string
-  fullName: string
-  language: string | null
-  isActive: boolean
-  defaultBranch: string
-  config: Record<string, unknown>
-  createdAt: string
-  updatedAt: string
-  githubInstallation: { accountLogin: string; installationId: number }
-  workspace: { id: string; name: string }
-}
-
-interface ChangeRecord {
-  id: string
-  source: string
-  type: string | null
-  subject: string
-  commitSha: string | null
-  timestamp: string
-  breaking: boolean
-}
+import type { Repository, ChangeRecord } from "@/types/models"
 
 interface Release {
   id: string
@@ -181,7 +158,7 @@ export default function RepositoryDetailPage({
             </div>
             <div>
               <p className="text-muted-foreground">GitHub Account</p>
-              <p className="font-medium">{repo.githubInstallation.accountLogin}</p>
+              <p className="font-medium">{repo.githubInstallation?.accountLogin}</p>
             </div>
             <div>
               <p className="text-muted-foreground">Connected</p>
@@ -189,7 +166,7 @@ export default function RepositoryDetailPage({
             </div>
             <div>
               <p className="text-muted-foreground">Workspace</p>
-              <p className="font-medium">{repo.workspace.name}</p>
+              <p className="font-medium">{repo.workspace?.name}</p>
             </div>
           </div>
 

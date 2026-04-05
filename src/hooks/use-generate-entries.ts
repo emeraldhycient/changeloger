@@ -1,11 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { apiClient } from "@/lib/api/client"
-
-interface GenerateResult {
-  entries: Array<{ id: string; category: string; title: string }>
-  processedCount: number
-  method: "ai" | "rule-based"
-}
+import type { GenerateResult } from "@/types/models"
 
 export function useUnprocessedCount(releaseId: string | undefined | null) {
   return useQuery<{ unprocessedCount: number }>({

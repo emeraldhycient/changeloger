@@ -17,18 +17,7 @@ import { Badge } from "@/components/ui/badge"
 import { apiClient } from "@/lib/api/client"
 import { useWorkspaceStore } from "@/stores/workspace-store"
 import { useReleases, type Release } from "@/hooks/use-releases"
-
-interface ChangeRecord {
-  id: string
-  source: string
-  type: string | null
-  subject: string
-  commitSha: string | null
-  timestamp: string
-  breaking: boolean
-  processedAt: string | null
-  repositoryId: string
-}
+import type { ChangeRecord } from "@/types/models"
 
 function timeAgo(date: string) {
   const diff = Date.now() - new Date(date).getTime()

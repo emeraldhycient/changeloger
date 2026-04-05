@@ -241,3 +241,45 @@ export const DEFAULT_REPOSITORY_CONFIG: RepositoryConfig = {
   aiEnabled: true,
   autoDetectVersionBumps: true,
 }
+
+// ─── Webhook Handler Payload Types ─────────────────────────────────────────
+
+export interface InstallationPayload {
+  action: string
+  installation: {
+    id: number
+    account: { login: string; type?: string }
+    target_type?: string
+  }
+  repositories?: Array<{
+    id: number
+    name: string
+    full_name: string
+    private: boolean
+  }>
+  sender: { login: string; id: number }
+}
+
+export interface InstallationReposPayload {
+  action: string
+  installation: {
+    id: number
+    account: { login: string }
+    target_type?: string
+  }
+  repository_selection: string
+  repositories_added: Array<{
+    id: number
+    name: string
+    full_name: string
+    private: boolean
+    default_branch?: string
+    language?: string | null
+  }>
+  repositories_removed: Array<{
+    id: number
+    name: string
+    full_name: string
+  }>
+  sender: { login: string; id: number }
+}
