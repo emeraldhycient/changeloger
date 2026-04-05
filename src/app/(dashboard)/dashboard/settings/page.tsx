@@ -35,6 +35,7 @@ import {
 import { cn } from "@/lib/utils"
 import { useWorkspaceStore } from "@/stores/workspace-store"
 import { ThemeEditor } from "@/components/widgets/theme-editor"
+import { DEFAULT_LIGHT_THEME } from "@/lib/widgets/theme"
 
 const GITHUB_APP_SLUG = process.env.NEXT_PUBLIC_GITHUB_APP_SLUG || "changeloger"
 
@@ -261,14 +262,10 @@ export default function SettingsPage() {
   const [nameValue, setNameValue] = useState("")
   const [deleteOpen, setDeleteOpen] = useState(false)
   const [deleteConfirm, setDeleteConfirm] = useState("")
-  const [widgetThemeConfig, setWidgetThemeConfig] = useState<Record<string, unknown>>(
-    (workspace?.widgetTheme as Record<string, unknown>) || {}
-  )
-
-  // Sync theme config when workspace changes
-  const workspaceTheme = workspace?.widgetTheme
-  useState(() => {
-    if (workspaceTheme) setWidgetThemeConfig(workspaceTheme as Record<string, unknown>)
+  const [widgetThemeConfig, setWidgetThemeConfig] = useState<Record<string, unknown>>({
+    ...DEFAULT_LIGHT_THEME,
+    mode: "auto",
+    ...((workspace?.widgetTheme as Record<string, unknown>) || {}),
   })
 
   const isFreePlan = (workspace?.plan || "free") === "free"
