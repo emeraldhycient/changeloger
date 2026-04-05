@@ -26,16 +26,29 @@ export async function POST(request: NextRequest) {
         where: { workspaceId: { in: userWorkspaces.map((w) => w.workspaceId) } },
       })
       if (otherInstallation) {
-        installation = await prisma.githubInstallation.update({
-          where: { id: otherInstallation.id },
-          data: { workspaceId },
+        // Verify the installation belongs to the same GitHub account
+        const userOAuth = await prisma.oAuthAccount.findFirst({
+          where: { userId: session.userId, provider: "github" },
+          select: { providerUserId: true },
         })
-        // Also re-link any repos from the old workspace
-        await prisma.repository.updateMany({
-          where: { githubInstallationId: installation.id },
-          data: { workspaceId },
-        })
-        console.log("[Sync] Re-linked installation", otherInstallation.installationId, "to workspace", workspaceId)
+        const accountMatch = !otherInstallation.accountLogin ||
+          otherInstallation.accountLogin === "pending-sync" ||
+          otherInstallation.accountLogin === "syncing" ||
+          (userOAuth && otherInstallation.accountLogin === userOAuth.providerUserId)
+
+        if (accountMatch) {
+          installation = await prisma.githubInstallation.update({
+            where: { id: otherInstallation.id },
+            data: { workspaceId },
+          })
+          await prisma.repository.updateMany({
+            where: { githubInstallationId: installation.id },
+            data: { workspaceId },
+          })
+          console.log("[Sync] Re-linked installation", otherInstallation.installationId, "to workspace", workspaceId)
+        } else {
+          console.log("[Sync] Skipped re-linking — account mismatch:", otherInstallation.accountLogin, "vs", userOAuth?.providerUserId)
+        }
       }
     }
 

@@ -28,11 +28,31 @@ export async function POST(
     const parsed = eventSchema.safeParse(body)
     if (!parsed.success) throw new ValidationError("Invalid events", parsed.error.format())
 
+    // Validate entryIds belong to releases visible to this widget
+    const submittedEntryIds = parsed.data.events
+      .map((e) => e.entryId)
+      .filter((id): id is string => !!id)
+
+    let validEntryIds = new Set<string>()
+    if (submittedEntryIds.length > 0) {
+      const whereClause = widget.repositoryId
+        ? { repositoryId: widget.repositoryId, status: "published" as const }
+        : { workspaceId: widget.workspaceId, status: "published" as const }
+      const validEntries = await prisma.changelogEntry.findMany({
+        where: {
+          id: { in: submittedEntryIds },
+          release: whereClause,
+        },
+        select: { id: true },
+      })
+      validEntryIds = new Set(validEntries.map((e) => e.id))
+    }
+
     await prisma.analyticsEvent.createMany({
       data: parsed.data.events.map((e) => ({
         widgetId: widget.id,
         eventType: e.eventType,
-        entryId: e.entryId || null,
+        entryId: (e.entryId && validEntryIds.has(e.entryId)) ? e.entryId : null,
         visitorHash: e.visitorHash,
         referrer: e.referrer || null,
         metadata: (e.metadata || {}) as object,

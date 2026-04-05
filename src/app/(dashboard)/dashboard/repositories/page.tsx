@@ -328,17 +328,19 @@ function RepositoriesContent() {
                 <Button
                   variant="outline"
                   size="sm"
+                  aria-label="Previous page"
                   disabled={page <= 1}
                   onClick={() => setPage(page - 1)}
                 >
                   <ChevronLeft className="h-4 w-4" />
                 </Button>
-                <span className="text-sm text-muted-foreground">
+                <span className="text-sm text-muted-foreground" role="status" aria-label={`Page ${pagination.page} of ${pagination.totalPages}`}>
                   {pagination.page} / {pagination.totalPages}
                 </span>
                 <Button
                   variant="outline"
                   size="sm"
+                  aria-label="Next page"
                   disabled={page >= pagination.totalPages}
                   onClick={() => setPage(page + 1)}
                 >
