@@ -117,6 +117,7 @@ export default function TeamPage() {
                   placeholder="colleague@company.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
+                  aria-required="true"
                   className="mt-1"
                 />
               </div>

@@ -22,6 +22,12 @@ export async function GET(
     // Enforce domain whitelist
     if (widget.domains && widget.domains.length > 0) {
       const origin = request.headers.get("origin") || request.headers.get("referer")
+      if (!origin) {
+        return Response.json(
+          { error: "Origin required" },
+          { status: 403, headers: { "Access-Control-Allow-Origin": "*" } },
+        )
+      }
       if (origin) {
         try {
           const hostname = new URL(origin).hostname
@@ -35,7 +41,10 @@ export async function GET(
             )
           }
         } catch {
-          // Invalid origin URL — allow (could be local file, etc.)
+          return Response.json(
+            { error: "Invalid origin" },
+            { status: 403, headers: { "Access-Control-Allow-Origin": "*" } },
+          )
         }
       }
     }

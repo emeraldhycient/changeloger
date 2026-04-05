@@ -988,9 +988,28 @@ function BottomCTASection() {
 // Page
 // ---------------------------------------------------------------------------
 
+const jsonLd = {
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  name: "Changeloger",
+  url: "https://changeloger.dev",
+  applicationCategory: "DeveloperApplication",
+  description:
+    "Automatically generate beautiful changelogs from your Git commits. AI-powered, collaborative, and embeddable.",
+  offers: {
+    "@type": "Offer",
+    price: "0",
+    priceCurrency: "USD",
+  },
+}
+
 export default function MarketingHomePage() {
   return (
     <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
       <HeroSection />
       <SocialProofSection />
       <HowItWorksSection />

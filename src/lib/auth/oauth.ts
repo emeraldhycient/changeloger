@@ -1,3 +1,4 @@
+import { createHash } from "crypto"
 import { v4 as uuid } from "uuid"
 import { prisma } from "@/lib/db/prisma"
 import { setSessionCookies } from "./session"
@@ -74,7 +75,7 @@ export async function handleOAuthCallback(userInfo: OAuthUserInfo): Promise<stri
     data: {
       id: sessionId,
       userId: user.id,
-      tokenHash: sessionId, // simplified for now
+      tokenHash: createHash("sha256").update(sessionId).digest("hex"),
       expiresAt,
     },
   })

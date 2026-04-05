@@ -71,6 +71,7 @@ export function EditorHeader({ release, entryCount }: EditorHeaderProps) {
           <Button
             variant="ghost"
             size="icon-sm"
+            aria-label="Go back"
             onClick={() => router.push("/dashboard/editor")}
           >
             <ArrowLeft className="h-4 w-4" />
@@ -188,6 +189,7 @@ export function EditorHeader({ release, entryCount }: EditorHeaderProps) {
             <Button
               variant="ghost"
               size="icon-sm"
+              aria-label="Delete draft"
               className="text-muted-foreground hover:text-destructive"
               onClick={() => setDeleteOpen(true)}
             >

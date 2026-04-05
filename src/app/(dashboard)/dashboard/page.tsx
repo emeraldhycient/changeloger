@@ -147,10 +147,13 @@ export default function DashboardPage() {
       <div>
         <h2 className="mb-4 text-lg font-semibold">Overview</h2>
         {isLoading ? (
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            {Array.from({ length: 4 }).map((_, i) => (
-              <div key={i} className="h-24 animate-pulse rounded-lg bg-muted/50" />
-            ))}
+          <div role="status" aria-label="Loading content">
+            <span className="sr-only">Loading...</span>
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <div key={i} className="h-24 animate-pulse rounded-lg bg-muted/50" />
+              ))}
+            </div>
           </div>
         ) : (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">

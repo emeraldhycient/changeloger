@@ -20,7 +20,7 @@ export async function GET(
 }
 
 const updateSchema = z.object({
-  config: z.record(z.string(), z.unknown()).optional(),
+  config: z.record(z.string(), z.unknown()).optional().refine((v) => !v || JSON.stringify(v).length < 10000, "Config too large"),
   domains: z.array(z.string()).optional(),
   repositoryId: z.string().uuid().nullable().optional(),
 })
