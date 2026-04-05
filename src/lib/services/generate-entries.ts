@@ -1,7 +1,8 @@
 import { prisma } from "@/lib/db/prisma"
 import { findUnprocessedByRepo, findUnprocessedByWorkspace, markAsProcessed } from "@/lib/db/queries/change-records"
-import { analyzeCommits } from "@/lib/engines/commit-analyzer"
-import type { RawCommit, GeneratedEntry } from "@/lib/engines/types"
+import { parseConventionalCommit } from "@/lib/engines/commit-analyzer"
+import { COMMIT_TYPE_TO_CATEGORY } from "@/lib/engines/types"
+import type { RawCommit } from "@/lib/engines/types"
 import type { ChangeCategory, ImpactLevel } from "@prisma/client"
 
 interface GenerateOptions {
@@ -16,6 +17,16 @@ interface GenerateResult {
   entries: Array<{ id: string; category: string; title: string }>
   processedCount: number
   method: "ai" | "rule-based"
+}
+
+interface PendingEntry {
+  category: string
+  title: string
+  description: string | null
+  impact: string
+  breaking: boolean
+  authors: unknown
+  sourceRecordId: string
 }
 
 const VALID_CATEGORIES: Set<string> = new Set([
@@ -40,59 +51,53 @@ export async function generateEntriesFromChanges(options: GenerateOptions): Prom
     return { entries: [], processedCount: 0, method: "rule-based" }
   }
 
-  // 2. Convert ChangeRecords to RawCommit format
-  const rawCommits: RawCommit[] = records.map((r) => {
-    const authors = r.authors as Array<{ name: string; email: string; username?: string }> | null
-    const files = r.filesChanged as { added?: string[]; removed?: string[]; modified?: string[] } | null
+  // 2. Create ONE entry per commit (no grouping — each commit is its own entry)
+  const pendingEntries: PendingEntry[] = records.map((r) => {
+    const parsed = parseConventionalCommit(r.subject + (r.body ? "\n\n" + r.body : ""))
+    const type = parsed.type || "changed"
+    const category = COMMIT_TYPE_TO_CATEGORY[type] || "changed"
+    const authors = r.authors as Array<{ name: string; email: string }> | null
+
     return {
-      sha: r.commitSha || r.id,
-      message: r.body ? `${r.subject}\n\n${r.body}` : r.subject,
-      author: authors?.[0] || { name: "Unknown", email: "" },
-      timestamp: r.timestamp.toISOString(),
-      filesChanged: files ? {
-        added: files.added || [],
-        removed: files.removed || [],
-        modified: files.modified || [],
-      } : undefined,
+      category,
+      title: parsed.subject,
+      description: parsed.body || r.body || null,
+      impact: parsed.breaking ? "critical" : "medium",
+      breaking: parsed.breaking,
+      authors: authors ?? [],
+      sourceRecordId: r.id,
     }
   })
 
-  // 3. Run commit analyzer (rule-based — always works, always produces entries)
-  const ruleBasedEntries: GeneratedEntry[] = analyzeCommits(rawCommits)
-  console.log("[Generate] Rule-based analyzer produced", ruleBasedEntries.length, "entries from", rawCommits.length, "commits")
+  console.log("[Generate] Parsed", pendingEntries.length, "entries from commits")
 
-  // 4. Try AI summarization if requested AND we have enough commits to justify it
-  let finalEntries = ruleBasedEntries
+  // 3. Try AI summarization to improve titles/descriptions (optional)
+  let finalEntries = pendingEntries
   let method: "ai" | "rule-based" = "rule-based"
 
-  if (useAI && process.env.OPENAI_API_KEY && rawCommits.length >= 3) {
+  if (useAI && process.env.OPENAI_API_KEY && records.length >= 3) {
     try {
       const { enforceAIGenerationLimit, incrementAIUsage } = await import("@/lib/middleware/plan-enforcement")
-      await enforceAIGenerationLimit(workspaceId, ruleBasedEntries.length)
+      await enforceAIGenerationLimit(workspaceId, pendingEntries.length)
 
       const { createOpenAIProvider } = await import("@/lib/ai/openai")
       const ai = createOpenAIProvider(process.env.OPENAI_API_KEY)
 
-      const parsedCommits = rawCommits.map((rc) => {
-        const lines = rc.message.split("\n")
-        const firstLine = lines[0]
-        const typeMatch = firstLine.match(/^(\w+)(?:\([^)]*\))?!?:\s*(.+)/)
+      const parsedCommits = records.map((r) => {
+        const parsed = parseConventionalCommit(r.subject + (r.body ? "\n\n" + r.body : ""))
+        const authors = r.authors as Array<{ name: string; email: string; username?: string }> | null
         return {
-          sha: rc.sha,
-          type: typeMatch?.[1] || null,
-          scope: null,
-          subject: typeMatch?.[2] || firstLine,
-          body: lines.length > 2 ? lines.slice(2).join("\n") : null,
-          breaking: firstLine.includes("!:") || rc.message.includes("BREAKING CHANGE"),
+          sha: r.commitSha || r.id,
+          type: parsed.type,
+          scope: parsed.scope,
+          subject: parsed.subject,
+          body: parsed.body,
+          breaking: parsed.breaking,
           breakingDescription: null,
-          footers: {},
-          authors: [rc.author],
-          timestamp: rc.timestamp,
-          filesChanged: rc.filesChanged ? [
-            ...rc.filesChanged.added,
-            ...rc.filesChanged.modified,
-            ...rc.filesChanged.removed,
-          ] : [],
+          footers: parsed.footers,
+          authors: authors || [{ name: "Unknown", email: "" }],
+          timestamp: r.timestamp.toISOString(),
+          filesChanged: [] as string[],
           isMerge: false,
           prNumber: null,
           sourceBranch: null,
@@ -101,8 +106,16 @@ export async function generateEntriesFromChanges(options: GenerateOptions): Prom
 
       const aiEntries = await ai.summarizeCommits(parsedCommits)
       console.log("[Generate] AI produced", aiEntries.length, "entries")
-      if (aiEntries.length > 0) {
-        finalEntries = aiEntries
+
+      // AI may return fewer entries (grouped) — we keep our 1-per-commit approach
+      // but use AI titles if the count matches
+      if (aiEntries.length === pendingEntries.length) {
+        finalEntries = pendingEntries.map((pe, i) => ({
+          ...pe,
+          title: aiEntries[i].title || pe.title,
+          description: aiEntries[i].description || pe.description,
+          category: VALID_CATEGORIES.has(aiEntries[i].category) ? aiEntries[i].category : pe.category,
+        }))
         method = "ai"
       }
 
@@ -112,34 +125,7 @@ export async function generateEntriesFromChanges(options: GenerateOptions): Prom
     }
   }
 
-  // 5. Ensure we always have at least one entry per commit (fallback)
-  if (finalEntries.length === 0 && rawCommits.length > 0) {
-    console.log("[Generate] No entries from analyzer, creating direct entries from commits")
-    finalEntries = rawCommits.map((rc) => {
-      const firstLine = rc.message.split("\n")[0]
-      const typeMatch = firstLine.match(/^(\w+)(?:\([^)]*\))?!?:\s*(.+)/)
-      const type = typeMatch?.[1] || "changed"
-      const subject = typeMatch?.[2] || firstLine
-      const categoryMap: Record<string, string> = {
-        feat: "added", fix: "fixed", perf: "performance", refactor: "changed",
-        docs: "documentation", chore: "maintenance", build: "maintenance",
-        ci: "maintenance", test: "maintenance", style: "maintenance",
-        revert: "removed",
-      }
-      return {
-        category: (categoryMap[type] || "changed") as GeneratedEntry["category"],
-        title: subject,
-        description: null,
-        impact: "medium" as const,
-        breaking: firstLine.includes("!:") || rc.message.includes("BREAKING CHANGE"),
-        confidence: 0.9,
-        authors: [rc.author],
-        sourceCommitShas: [rc.sha],
-      }
-    })
-  }
-
-  // 6. Get current max position for the release
+  // 4. Get current max position for the release
   const existingEntries = await prisma.changelogEntry.findMany({
     where: { releaseId },
     select: { position: true },
@@ -148,7 +134,7 @@ export async function generateEntriesFromChanges(options: GenerateOptions): Prom
   })
   let nextPosition = (existingEntries[0]?.position ?? -1) + 1
 
-  // 7. Create ChangelogEntry rows
+  // 5. Create ChangelogEntry rows — one per commit
   const createdEntries = []
   for (const entry of finalEntries) {
     try {
@@ -164,22 +150,22 @@ export async function generateEntriesFromChanges(options: GenerateOptions): Prom
           impact: impact as ImpactLevel,
           breaking: entry.breaking || false,
           authors: (entry.authors as object) ?? [],
-          sourceRecordIds: [],
+          sourceRecordIds: [entry.sourceRecordId],
           position: nextPosition++,
           reviewed: false,
         },
       })
       createdEntries.push({ id: created.id, category: created.category, title: created.title })
-      console.log("[Generate] ✓ Created entry:", created.category, "-", created.title)
+      console.log("[Generate] ✓", created.category, "-", created.title)
     } catch (err) {
-      console.error("[Generate] ✗ Failed to create entry:", entry.title, "-", (err as Error).message)
+      console.error("[Generate] ✗ Failed:", entry.title, "-", (err as Error).message)
     }
   }
 
-  // 8. Mark all processed records
+  // 6. Mark all processed records
   await markAsProcessed(records.map((r) => r.id))
 
-  console.log("[Generate] Complete:", createdEntries.length, "entries created,", records.length, "records processed, method:", method)
+  console.log("[Generate] Complete:", createdEntries.length, "entries from", records.length, "commits, method:", method)
 
   return {
     entries: createdEntries,
