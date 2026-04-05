@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { ArrowLeft, FileText, Send, GitBranch, Layers, Sparkles } from "lucide-react"
+import { ArrowLeft, FileText, Send, GitBranch, Layers, Sparkles, Pencil } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -50,6 +50,7 @@ export function EditorHeader({ release, entryCount }: EditorHeaderProps) {
 
   const isDraft = release.status === "draft"
   const breakingCount = release.entries?.filter((e) => e.breaking).length ?? 0
+  const reviewedCount = release.entries?.filter((e) => e.reviewed).length ?? 0
 
   return (
     <>
@@ -84,11 +85,17 @@ export function EditorHeader({ release, entryCount }: EditorHeaderProps) {
           ) : (
             <button
               type="button"
-              className="rounded px-1 text-lg font-bold transition-colors hover:bg-muted/50"
+              className={cn(
+                "group/version flex items-center gap-1.5 rounded px-1.5 py-0.5 text-lg font-bold transition-colors",
+                isDraft && "hover:bg-muted/50 cursor-text",
+              )}
               onClick={() => isDraft && setEditingVersion(true)}
               title={isDraft ? "Click to edit version" : undefined}
             >
               v{release.version}
+              {isDraft && (
+                <Pencil className="h-3 w-3 text-muted-foreground opacity-0 transition-opacity group-hover/version:opacity-100" />
+              )}
             </button>
           )}
 
@@ -119,12 +126,25 @@ export function EditorHeader({ release, entryCount }: EditorHeaderProps) {
         </div>
 
         <div className="flex items-center gap-3">
-          {/* Entry count */}
-          <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
-            <FileText className="h-3.5 w-3.5" />
-            <span>
+          {/* Entry count + review status */}
+          <div className="flex items-center gap-3 text-sm text-muted-foreground">
+            <span className="flex items-center gap-1.5">
+              <FileText className="h-3.5 w-3.5" />
               {entryCount} {entryCount === 1 ? "entry" : "entries"}
             </span>
+            {entryCount > 0 && (
+              <span className="flex items-center gap-1.5 text-xs">
+                {reviewedCount === entryCount ? (
+                  <Badge variant="outline" className="border-emerald-500/30 text-[10px] text-emerald-600 dark:text-emerald-400">
+                    All reviewed
+                  </Badge>
+                ) : (
+                  <Badge variant="outline" className="text-[10px]">
+                    {reviewedCount}/{entryCount} reviewed
+                  </Badge>
+                )}
+              </span>
+            )}
           </div>
 
           {/* Generate */}
