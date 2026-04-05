@@ -2,6 +2,7 @@
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
+import { useQueryClient } from "@tanstack/react-query"
 import { AlertTriangle, CheckCircle2, Loader2 } from "lucide-react"
 import {
   Dialog,
@@ -33,6 +34,7 @@ export function PublishDialog({
   breakingCount,
 }: PublishDialogProps) {
   const router = useRouter()
+  const queryClient = useQueryClient()
   const [publishing, setPublishing] = useState(false)
   const [published, setPublished] = useState(false)
 
@@ -43,11 +45,14 @@ export function PublishDialog({
     setPublishing(true)
     try {
       await apiClient.post(`/api/releases/${release.id}/publish`)
+      // Invalidate all affected caches
+      queryClient.invalidateQueries({ queryKey: ["release", release.id] })
+      queryClient.invalidateQueries({ queryKey: ["releases"] })
+      queryClient.invalidateQueries({ queryKey: ["dashboard-stats"] })
       setPublished(true)
       setTimeout(() => {
         onOpenChange(false)
         router.push("/dashboard/editor")
-        router.refresh()
       }, 1500)
     } catch {
       setPublishing(false)

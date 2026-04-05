@@ -37,6 +37,7 @@ export function useCreateEntry() {
       queryClient.invalidateQueries({ queryKey: ["entries", variables.releaseId] })
       queryClient.invalidateQueries({ queryKey: ["release", variables.releaseId] })
       queryClient.invalidateQueries({ queryKey: ["releases"] })
+      queryClient.invalidateQueries({ queryKey: ["dashboard-stats"] })
     },
   })
 }
@@ -88,6 +89,9 @@ export function useUpdateEntry() {
     },
     onSettled: (_data, _error, variables) => {
       queryClient.invalidateQueries({ queryKey: ["entries", variables.releaseId] })
+      queryClient.invalidateQueries({ queryKey: ["release", variables.releaseId] })
+      queryClient.invalidateQueries({ queryKey: ["releases"] })
+      queryClient.invalidateQueries({ queryKey: ["dashboard-stats"] })
     },
   })
 }
@@ -109,6 +113,7 @@ export function useDeleteEntry() {
       queryClient.invalidateQueries({ queryKey: ["entries", variables.releaseId] })
       queryClient.invalidateQueries({ queryKey: ["release", variables.releaseId] })
       queryClient.invalidateQueries({ queryKey: ["releases"] })
+      queryClient.invalidateQueries({ queryKey: ["dashboard-stats"] })
     },
   })
 }
@@ -156,6 +161,7 @@ export function useReorderEntries() {
     },
     onSettled: (_data, _error, variables) => {
       queryClient.invalidateQueries({ queryKey: ["entries", variables.releaseId] })
+      queryClient.invalidateQueries({ queryKey: ["release", variables.releaseId] })
     },
   })
 }
