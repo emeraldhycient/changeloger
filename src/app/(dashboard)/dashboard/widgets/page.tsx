@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useMemo } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -45,8 +45,21 @@ import {
   Pencil,
   Loader2,
   X,
+  Search,
+  ChevronLeft,
+  ChevronRight,
+  ArrowUpDown,
+  Filter,
 } from "lucide-react"
 import { Separator } from "@/components/ui/separator"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  DropdownMenuSeparator,
+  DropdownMenuLabel,
+} from "@/components/ui/dropdown-menu"
 import { cn } from "@/lib/utils"
 import { ThemeEditor } from "@/components/widgets/theme-editor"
 import { apiClient } from "@/lib/api/client"
@@ -124,6 +137,13 @@ export default function WidgetsPage() {
   const [snippetWidget, setSnippetWidget] = useState<Widget | null>(null)
   const [detailWidget, setDetailWidget] = useState<Widget | null>(null)
 
+  // Widget list search/filter/sort/pagination state
+  const [searchWidgets, setSearchWidgets] = useState("")
+  const [typeFilter, setTypeFilter] = useState<string | null>(null)
+  const [widgetSort, setWidgetSort] = useState<"newest" | "oldest" | "type">("newest")
+  const [widgetPage, setWidgetPage] = useState(1)
+  const WIDGETS_PER_PAGE = 10
+
   // ── Workspace plan ──────────────────────────────────────────────────────
   const { data: workspaces = [] } = useWorkspaces()
   const currentWorkspace = workspaces.find((w) => w.id === currentWorkspaceId)
@@ -155,6 +175,46 @@ export default function WidgetsPage() {
   })
 
   const { data: allReleases = [] } = useReleases(currentWorkspaceId, "published")
+
+  // ── Filtered / sorted / paginated widgets ──────────────────────────────
+
+  const filteredWidgets = useMemo(() => {
+    let result = [...widgets]
+
+    // Search by embed token or repository name
+    if (searchWidgets.trim()) {
+      const q = searchWidgets.toLowerCase()
+      result = result.filter(
+        (w) =>
+          w.embedToken.toLowerCase().includes(q) ||
+          (w.repository?.fullName || "").toLowerCase().includes(q) ||
+          (w.repository?.name || "").toLowerCase().includes(q),
+      )
+    }
+
+    // Filter by type
+    if (typeFilter) {
+      result = result.filter((w) => w.type === typeFilter)
+    }
+
+    // Sort
+    if (widgetSort === "newest") {
+      result.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+    } else if (widgetSort === "oldest") {
+      result.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
+    } else if (widgetSort === "type") {
+      result.sort((a, b) => a.type.localeCompare(b.type))
+    }
+
+    return result
+  }, [widgets, searchWidgets, typeFilter, widgetSort])
+
+  const totalWidgetPages = Math.max(1, Math.ceil(filteredWidgets.length / WIDGETS_PER_PAGE))
+  const safeWidgetPage = Math.min(widgetPage, totalWidgetPages)
+  const paginatedWidgets = filteredWidgets.slice(
+    (safeWidgetPage - 1) * WIDGETS_PER_PAGE,
+    safeWidgetPage * WIDGETS_PER_PAGE,
+  )
 
   // ── Mutations ───────────────────────────────────────────────────────────
 
@@ -335,88 +395,185 @@ export default function WidgetsPage() {
             </Button>
           </div>
         ) : (
-          <div className="space-y-3">
-            {widgets.map((widget) => {
-              const meta = getWidgetMeta(widget.type)
-              const Icon = meta.icon
-              const theme =
-                (widget.config?.theme as string) || "auto"
+          <>
+            {/* Search / filter / sort bar */}
+            <div className="mb-4 flex flex-wrap items-center gap-2">
+              <div className="relative flex-1 min-w-[200px]">
+                <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  placeholder="Search by token or repository..."
+                  value={searchWidgets}
+                  onChange={(e) => { setSearchWidgets(e.target.value); setWidgetPage(1) }}
+                  className="h-9 pl-8 text-sm"
+                />
+              </div>
 
-              return (
-                <Card key={widget.id}>
-                  <CardContent className="flex items-center justify-between p-4">
-                    <button
-                      type="button"
-                      className="flex flex-1 items-center gap-4 text-left"
-                      onClick={() => openEditSheet(widget)}
-                    >
-                      <div className="flex h-10 w-10 items-center justify-center bg-primary/10">
-                        <Icon className="h-5 w-5 text-primary" />
-                      </div>
-                      <div className="min-w-0">
+              {/* Type filter */}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm" className="h-9 gap-1.5">
+                    <Filter className="h-3.5 w-3.5" />
+                    {typeFilter ? typeFilter.charAt(0).toUpperCase() + typeFilter.slice(1) : "All Types"}
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuLabel>Widget Type</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={() => { setTypeFilter(null); setWidgetPage(1) }}>
+                    All Types
+                  </DropdownMenuItem>
+                  {WIDGET_TYPES.map((wt) => (
+                    <DropdownMenuItem key={wt.type} onClick={() => { setTypeFilter(wt.type); setWidgetPage(1) }}>
+                      <span className="capitalize">{wt.type}</span>
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+
+              {/* Sort */}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm" className="h-9 gap-1.5">
+                    <ArrowUpDown className="h-3.5 w-3.5" />
+                    Sort
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={() => { setWidgetSort("newest"); setWidgetPage(1) }}>Newest first</DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => { setWidgetSort("oldest"); setWidgetPage(1) }}>Oldest first</DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => { setWidgetSort("type"); setWidgetPage(1) }}>Type A-Z</DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+
+            {filteredWidgets.length === 0 ? (
+              <div className="flex flex-col items-center justify-center border border-dashed py-12">
+                <Search className="h-6 w-6 text-muted-foreground" />
+                <p className="mt-3 text-sm text-muted-foreground">No widgets match your filters</p>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="mt-2"
+                  onClick={() => { setSearchWidgets(""); setTypeFilter(null); setWidgetPage(1) }}
+                >
+                  Clear filters
+                </Button>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {paginatedWidgets.map((widget) => {
+                  const meta = getWidgetMeta(widget.type)
+                  const Icon = meta.icon
+                  const theme =
+                    (widget.config?.theme as string) || "auto"
+
+                  return (
+                    <Card key={widget.id}>
+                      <CardContent className="flex items-center justify-between p-4">
+                        <button
+                          type="button"
+                          className="flex flex-1 items-center gap-4 text-left"
+                          onClick={() => openEditSheet(widget)}
+                        >
+                          <div className="flex h-10 w-10 items-center justify-center bg-primary/10">
+                            <Icon className="h-5 w-5 text-primary" />
+                          </div>
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-2">
+                              <Badge variant="secondary" className="text-[10px] capitalize">
+                                {widget.type}
+                              </Badge>
+                              {widget.repository ? (
+                                <Badge variant="secondary" className="text-[10px]">
+                                  <GitBranch className="mr-1 h-3 w-3" />
+                                  {widget.repository.fullName}
+                                </Badge>
+                              ) : (
+                                <Badge variant="secondary" className="text-[10px]">
+                                  <Layers className="mr-1 h-3 w-3" />
+                                  All Releases
+                                </Badge>
+                              )}
+                            </div>
+                            <div className="mt-0.5 flex items-center gap-3 text-xs text-muted-foreground">
+                              <code>{widget.embedToken.slice(0, 12)}...</code>
+                              <span className="flex items-center gap-1">
+                                <Calendar className="h-3 w-3" />
+                                {new Date(widget.createdAt).toLocaleDateString()}
+                              </span>
+                              <span className="capitalize">{theme} theme</span>
+                            </div>
+                          </div>
+                        </button>
                         <div className="flex items-center gap-2">
-                          <Badge variant="secondary" className="text-[10px] capitalize">
-                            {widget.type}
-                          </Badge>
-                          {widget.repository ? (
-                            <Badge variant="secondary" className="text-[10px]">
-                              <GitBranch className="mr-1 h-3 w-3" />
-                              {widget.repository.fullName}
-                            </Badge>
-                          ) : (
-                            <Badge variant="secondary" className="text-[10px]">
-                              <Layers className="mr-1 h-3 w-3" />
-                              All Releases
-                            </Badge>
-                          )}
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="gap-1.5"
+                            onClick={() =>
+                              handleCopy(
+                                getEmbedSnippet(widget.embedToken, widget.type, theme),
+                                widget.id,
+                              )
+                            }
+                          >
+                            {copied === widget.id ? (
+                              <>
+                                <Check className="h-3.5 w-3.5 text-green-500" />
+                                Copied!
+                              </>
+                            ) : (
+                              <>
+                                <Copy className="h-3.5 w-3.5" />
+                                Copy Snippet
+                              </>
+                            )}
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => openEditSheet(widget)}
+                          >
+                            <Pencil className="h-3.5 w-3.5" />
+                          </Button>
                         </div>
-                        <div className="mt-0.5 flex items-center gap-3 text-xs text-muted-foreground">
-                          <code>{widget.embedToken.slice(0, 12)}...</code>
-                          <span className="flex items-center gap-1">
-                            <Calendar className="h-3 w-3" />
-                            {new Date(widget.createdAt).toLocaleDateString()}
-                          </span>
-                          <span className="capitalize">{theme} theme</span>
-                        </div>
-                      </div>
-                    </button>
+                      </CardContent>
+                    </Card>
+                  )
+                })}
+
+                {/* Pagination */}
+                {filteredWidgets.length > WIDGETS_PER_PAGE && (
+                  <div className="mt-4 flex items-center justify-between">
+                    <p className="text-sm text-muted-foreground">
+                      Showing {(safeWidgetPage - 1) * WIDGETS_PER_PAGE + 1}&ndash;{Math.min(safeWidgetPage * WIDGETS_PER_PAGE, filteredWidgets.length)} of {filteredWidgets.length}
+                    </p>
                     <div className="flex items-center gap-2">
                       <Button
-                        variant="ghost"
+                        variant="outline"
                         size="sm"
-                        className="gap-1.5"
-                        onClick={() =>
-                          handleCopy(
-                            getEmbedSnippet(widget.embedToken, widget.type, theme),
-                            widget.id,
-                          )
-                        }
+                        disabled={safeWidgetPage <= 1}
+                        onClick={() => setWidgetPage(safeWidgetPage - 1)}
                       >
-                        {copied === widget.id ? (
-                          <>
-                            <Check className="h-3.5 w-3.5 text-green-500" />
-                            Copied!
-                          </>
-                        ) : (
-                          <>
-                            <Copy className="h-3.5 w-3.5" />
-                            Copy Snippet
-                          </>
-                        )}
+                        <ChevronLeft className="h-4 w-4" />
                       </Button>
+                      <span className="text-sm text-muted-foreground">
+                        {safeWidgetPage} / {totalWidgetPages}
+                      </span>
                       <Button
-                        variant="ghost"
+                        variant="outline"
                         size="sm"
-                        onClick={() => openEditSheet(widget)}
+                        disabled={safeWidgetPage >= totalWidgetPages}
+                        onClick={() => setWidgetPage(safeWidgetPage + 1)}
                       >
-                        <Pencil className="h-3.5 w-3.5" />
+                        <ChevronRight className="h-4 w-4" />
                       </Button>
                     </div>
-                  </CardContent>
-                </Card>
-              )
-            })}
-          </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </>
         )}
 
         {/* ── Create Widget Dialog ──────────────────────────────────────── */}
