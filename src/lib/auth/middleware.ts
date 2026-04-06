@@ -17,6 +17,16 @@ export async function requireAuth(): Promise<SessionPayload> {
   if (!session) {
     throw new AuthError("Authentication required")
   }
+
+  // Check if user is suspended by platform admin
+  const user = await prisma.user.findUnique({
+    where: { id: session.userId },
+    select: { isSystemSuspended: true },
+  })
+  if (user?.isSystemSuspended) {
+    throw new ForbiddenError("Your account has been suspended. Contact support for assistance.")
+  }
+
   return session
 }
 
@@ -33,10 +43,17 @@ export async function requireWorkspaceRole(
         userId: session.userId,
       },
     },
+    include: {
+      workspace: { select: { isSystemSuspended: true } },
+    },
   })
 
   if (!member) {
     throw new ForbiddenError("Not a member of this workspace")
+  }
+
+  if (member.workspace.isSystemSuspended) {
+    throw new ForbiddenError("This workspace has been suspended. Contact support for assistance.")
   }
 
   if (ROLE_HIERARCHY[member.role] < ROLE_HIERARCHY[minimumRole]) {
