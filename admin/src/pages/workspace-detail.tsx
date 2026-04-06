@@ -1,12 +1,17 @@
 import { useState } from "react"
 import { useParams, useNavigate, Link } from "react-router-dom"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
+import { toast } from "sonner"
 import { api } from "@/lib/api"
 import { cn } from "@/lib/utils"
+import { timeAgo } from "@/lib/format"
+import { ConfirmDialog } from "@/components/confirm-dialog"
 import {
   ArrowLeft, Ban, Trash2, ChevronRight, ChevronDown,
-  Users, GitBranch, FileText, Eye, Sparkles, Calendar,
+  Users, GitBranch, FileText, Eye, Sparkles, Calendar, Clock, UserMinus,
 } from "lucide-react"
+import { useAuthStore } from "@/stores/auth-store"
+import { canPerform } from "@/lib/permissions"
 
 type Tab = "overview" | "members" | "billing"
 
@@ -31,6 +36,12 @@ export function WorkspaceDetailPage() {
   const [tab, setTab] = useState<Tab>("overview")
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [showPlanMenu, setShowPlanMenu] = useState(false)
+  const [showTrialDialog, setShowTrialDialog] = useState(false)
+  const [trialDays, setTrialDays] = useState<number | "">("")
+  const [trialPreset, setTrialPreset] = useState<number | null>(null)
+  const [removeMemberConfirm, setRemoveMemberConfirm] = useState<{ open: boolean; memberId: string; name: string }>({ open: false, memberId: "", name: "" })
+  const { admin } = useAuthStore()
+  const canEdit = canPerform(admin?.role || "", "admin")
 
   const { data: workspace, isLoading } = useQuery({
     queryKey: ["admin-workspace", workspaceId],
@@ -47,8 +58,12 @@ export function WorkspaceDetailPage() {
       await api.post(`/api/admin/workspaces/${workspaceId}/${action}`)
     },
     onSuccess: () => {
+      toast.success(workspace?.isSystemSuspended ? "Workspace unsuspended successfully" : "Workspace suspended successfully")
       queryClient.invalidateQueries({ queryKey: ["admin-workspace", workspaceId] })
       queryClient.invalidateQueries({ queryKey: ["admin-workspaces"] })
+    },
+    onError: (err: any) => {
+      toast.error(err.response?.data?.error || "Failed to update workspace status")
     },
   })
 
@@ -56,10 +71,14 @@ export function WorkspaceDetailPage() {
     mutationFn: async (plan: string) => {
       await api.patch(`/api/admin/workspaces/${workspaceId}/plan`, { plan })
     },
-    onSuccess: () => {
+    onSuccess: (_data, plan) => {
+      toast.success(`Plan changed to ${plan} successfully`)
       queryClient.invalidateQueries({ queryKey: ["admin-workspace", workspaceId] })
       queryClient.invalidateQueries({ queryKey: ["admin-workspaces"] })
       setShowPlanMenu(false)
+    },
+    onError: (err: any) => {
+      toast.error(err.response?.data?.error || "Failed to change plan")
     },
   })
 
@@ -68,8 +87,41 @@ export function WorkspaceDetailPage() {
       await api.delete(`/api/admin/workspaces/${workspaceId}`)
     },
     onSuccess: () => {
+      toast.success("Workspace deleted successfully")
       queryClient.invalidateQueries({ queryKey: ["admin-workspaces"] })
       navigate("/workspaces")
+    },
+    onError: (err: any) => {
+      toast.error(err.response?.data?.error || "Failed to delete workspace")
+    },
+  })
+
+  const trialMutation = useMutation({
+    mutationFn: async (days: number) => {
+      await api.patch(`/api/admin/workspaces/${workspaceId}/trial`, { days })
+    },
+    onSuccess: () => {
+      toast.success("Trial updated successfully")
+      queryClient.invalidateQueries({ queryKey: ["admin-workspace", workspaceId] })
+      setShowTrialDialog(false)
+      setTrialDays("")
+      setTrialPreset(null)
+    },
+    onError: (err: any) => {
+      toast.error(err.response?.data?.error || "Failed to update trial")
+    },
+  })
+
+  const removeMemberMutation = useMutation({
+    mutationFn: async (memberId: string) => {
+      await api.delete(`/api/admin/workspaces/${workspaceId}/members/${memberId}`)
+    },
+    onSuccess: () => {
+      toast.success("Member removed successfully")
+      queryClient.invalidateQueries({ queryKey: ["admin-workspace", workspaceId] })
+    },
+    onError: (err: any) => {
+      toast.error(err.response?.data?.error || "Failed to remove member")
     },
   })
 
@@ -115,6 +167,8 @@ export function WorkspaceDetailPage() {
     { key: "billing", label: "Billing" },
   ]
 
+  const effectiveTrialDays = trialPreset ?? (typeof trialDays === "number" ? trialDays : 0)
+
   return (
     <div className="space-y-6">
       {/* Breadcrumbs */}
@@ -135,54 +189,56 @@ export function WorkspaceDetailPage() {
             <p className="text-sm text-muted-foreground">{workspace.slug}</p>
           </div>
         </div>
-        <div className="flex items-center gap-2">
-          {/* Plan selector */}
-          <div className="relative">
+        {canEdit && (
+          <div className="flex items-center gap-2">
+            {/* Plan selector */}
+            <div className="relative">
+              <button
+                onClick={() => setShowPlanMenu(!showPlanMenu)}
+                className="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-sm font-medium hover:bg-muted"
+              >
+                Change Plan
+                <ChevronDown className="h-3.5 w-3.5" />
+              </button>
+              {showPlanMenu && (
+                <div className="absolute right-0 top-full z-10 mt-1 w-36 rounded-md border border-border bg-card py-1 shadow-lg">
+                  {plans.map((p) => (
+                    <button
+                      key={p}
+                      onClick={() => planMutation.mutate(p)}
+                      className={cn(
+                        "w-full px-3 py-1.5 text-left text-sm capitalize hover:bg-muted",
+                        workspace.plan === p && "font-medium text-primary",
+                      )}
+                    >
+                      {p}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
             <button
-              onClick={() => setShowPlanMenu(!showPlanMenu)}
-              className="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-sm font-medium hover:bg-muted"
+              onClick={() => suspendMutation.mutate()}
+              disabled={suspendMutation.isPending}
+              className={cn(
+                "inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
+                workspace.isSystemSuspended
+                  ? "bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500/20"
+                  : "bg-amber-500/10 text-amber-500 hover:bg-amber-500/20",
+              )}
             >
-              Change Plan
-              <ChevronDown className="h-3.5 w-3.5" />
+              <Ban className="h-3.5 w-3.5" />
+              {workspace.isSystemSuspended ? "Unsuspend" : "Suspend"}
             </button>
-            {showPlanMenu && (
-              <div className="absolute right-0 top-full z-10 mt-1 w-36 rounded-md border border-border bg-card py-1 shadow-lg">
-                {plans.map((p) => (
-                  <button
-                    key={p}
-                    onClick={() => planMutation.mutate(p)}
-                    className={cn(
-                      "w-full px-3 py-1.5 text-left text-sm capitalize hover:bg-muted",
-                      workspace.plan === p && "font-medium text-primary",
-                    )}
-                  >
-                    {p}
-                  </button>
-                ))}
-              </div>
-            )}
+            <button
+              onClick={() => setShowDeleteConfirm(true)}
+              className="inline-flex items-center gap-1.5 rounded-md bg-red-500/10 px-3 py-1.5 text-sm font-medium text-red-500 hover:bg-red-500/20"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+              Delete
+            </button>
           </div>
-          <button
-            onClick={() => suspendMutation.mutate()}
-            disabled={suspendMutation.isPending}
-            className={cn(
-              "inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
-              workspace.isSystemSuspended
-                ? "bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500/20"
-                : "bg-amber-500/10 text-amber-500 hover:bg-amber-500/20",
-            )}
-          >
-            <Ban className="h-3.5 w-3.5" />
-            {workspace.isSystemSuspended ? "Unsuspend" : "Suspend"}
-          </button>
-          <button
-            onClick={() => setShowDeleteConfirm(true)}
-            className="inline-flex items-center gap-1.5 rounded-md bg-red-500/10 px-3 py-1.5 text-sm font-medium text-red-500 hover:bg-red-500/20"
-          >
-            <Trash2 className="h-3.5 w-3.5" />
-            Delete
-          </button>
-        </div>
+        )}
       </div>
 
       {workspace.isSystemSuspended && (
@@ -222,8 +278,8 @@ export function WorkspaceDetailPage() {
                     {(workspace.owner?.name || workspace.owner?.email || "?").charAt(0).toUpperCase()}
                   </div>
                   <div>
-                    <p className="text-sm font-medium">{workspace.owner?.name || "—"}</p>
-                    <p className="text-xs text-muted-foreground">{workspace.owner?.email || "—"}</p>
+                    <p className="text-sm font-medium">{workspace.owner?.name || "\u2014"}</p>
+                    <p className="text-xs text-muted-foreground">{workspace.owner?.email || "\u2014"}</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
@@ -238,7 +294,9 @@ export function WorkspaceDetailPage() {
                 </div>
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
                   <Calendar className="h-3.5 w-3.5" />
-                  Created {new Date(workspace.createdAt).toLocaleDateString()}
+                  <span title={new Date(workspace.createdAt).toLocaleString()}>
+                    Created {timeAgo(workspace.createdAt)}
+                  </span>
                 </div>
               </div>
             </div>
@@ -290,22 +348,36 @@ export function WorkspaceDetailPage() {
                 <th className="px-4 py-3 text-left font-medium text-muted-foreground">Name</th>
                 <th className="px-4 py-3 text-left font-medium text-muted-foreground">Email</th>
                 <th className="px-4 py-3 text-left font-medium text-muted-foreground">Role</th>
+                <th className="px-4 py-3 text-left font-medium text-muted-foreground w-20">Actions</th>
               </tr>
             </thead>
             <tbody>
               {members.length === 0 ? (
-                <tr><td colSpan={3} className="px-4 py-8 text-center text-muted-foreground">No members</td></tr>
+                <tr><td colSpan={4} className="px-4 py-8 text-center text-muted-foreground">No members</td></tr>
               ) : (
                 members.map((m: any) => {
                   const u = m.user || m
+                  const isOwner = m.role === "owner"
                   return (
                     <tr key={m.id || u.id} className="border-b border-border hover:bg-muted/30">
-                      <td className="px-4 py-3 font-medium">{u.name || "—"}</td>
-                      <td className="px-4 py-3 text-muted-foreground">{u.email || "—"}</td>
+                      <td className="px-4 py-3 font-medium">{u.name || "\u2014"}</td>
+                      <td className="px-4 py-3 text-muted-foreground">{u.email || "\u2014"}</td>
                       <td className="px-4 py-3">
                         <span className={cn("inline-flex rounded-full px-2 py-0.5 text-xs font-medium capitalize", roleColors[m.role] || "bg-gray-500/10 text-gray-400")}>
                           {m.role}
                         </span>
+                      </td>
+                      <td className="px-4 py-3">
+                        {!isOwner && (
+                          <button
+                            onClick={() => setRemoveMemberConfirm({ open: true, memberId: m.id, name: u.name || u.email })}
+                            disabled={removeMemberMutation.isPending}
+                            className="inline-flex items-center gap-1 rounded px-2 py-1 text-xs text-red-500 hover:bg-red-500/10"
+                          >
+                            <UserMinus className="h-3 w-3" />
+                            Remove
+                          </button>
+                        )}
                       </td>
                     </tr>
                   )
@@ -330,24 +402,37 @@ export function WorkspaceDetailPage() {
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Polar Customer ID</span>
-                <span className="font-mono text-xs">{workspace.polarCustomerId || "—"}</span>
+                <span className="font-mono text-xs">{workspace.polarCustomerId || "\u2014"}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Subscription ID</span>
-                <span className="font-mono text-xs">{workspace.polarSubscriptionId || "—"}</span>
+                <span className="font-mono text-xs">{workspace.polarSubscriptionId || "\u2014"}</span>
               </div>
             </div>
           </div>
           <div className="space-y-4 rounded-lg border border-border p-5">
-            <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Trial & Usage</h3>
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Trial & Usage</h3>
+              <button
+                onClick={() => setShowTrialDialog(true)}
+                className="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-xs font-medium hover:bg-muted"
+              >
+                <Clock className="h-3 w-3" />
+                Extend Trial
+              </button>
+            </div>
             <div className="space-y-3 text-sm">
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Trial Start</span>
-                <span>{workspace.trialStartedAt ? new Date(workspace.trialStartedAt).toLocaleDateString() : "—"}</span>
+                <span title={workspace.trialStartedAt ? new Date(workspace.trialStartedAt).toLocaleString() : ""}>
+                  {workspace.trialStartedAt ? timeAgo(workspace.trialStartedAt) : "\u2014"}
+                </span>
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Trial End</span>
-                <span>{workspace.trialEndsAt ? new Date(workspace.trialEndsAt).toLocaleDateString() : "—"}</span>
+                <span title={workspace.trialEndsAt ? new Date(workspace.trialEndsAt).toLocaleString() : ""}>
+                  {workspace.trialEndsAt ? new Date(workspace.trialEndsAt).toLocaleDateString() : "\u2014"}
+                </span>
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">AI Generations</span>
@@ -358,27 +443,81 @@ export function WorkspaceDetailPage() {
         </div>
       )}
 
-      {/* Delete confirmation dialog */}
-      {showDeleteConfirm && (
+      <ConfirmDialog
+        open={showDeleteConfirm}
+        onClose={() => setShowDeleteConfirm(false)}
+        onConfirm={() => { deleteMutation.mutate(); setShowDeleteConfirm(false) }}
+        title="Delete Workspace"
+        description={`Are you sure you want to delete "${workspace.name}"? This will remove all associated data. This action cannot be undone.`}
+        confirmText="Delete"
+        typeToConfirm={workspace.name}
+        destructive
+        loading={deleteMutation.isPending}
+      />
+
+      <ConfirmDialog
+        open={removeMemberConfirm.open}
+        onClose={() => setRemoveMemberConfirm({ open: false, memberId: "", name: "" })}
+        onConfirm={() => {
+          removeMemberMutation.mutate(removeMemberConfirm.memberId)
+          setRemoveMemberConfirm({ open: false, memberId: "", name: "" })
+        }}
+        title="Remove Member"
+        description={`Are you sure you want to remove "${removeMemberConfirm.name}" from this workspace?`}
+        confirmText="Remove"
+        destructive
+        loading={removeMemberMutation.isPending}
+      />
+
+      {/* Extend Trial dialog */}
+      {showTrialDialog && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
           <div className="w-full max-w-md rounded-lg border border-border bg-card p-6 shadow-lg">
-            <h2 className="text-lg font-bold">Delete Workspace</h2>
+            <h2 className="text-lg font-bold">Extend Trial</h2>
             <p className="mt-2 text-sm text-muted-foreground">
-              Are you sure you want to delete <strong>{workspace.name}</strong>? This will remove all associated data. This action cannot be undone.
+              Choose a preset or enter custom days to extend the trial for <strong>{workspace.name}</strong>.
             </p>
+            <div className="mt-4 flex gap-2">
+              {[7, 14, 30].map((d) => (
+                <button
+                  key={d}
+                  onClick={() => { setTrialPreset(d); setTrialDays("") }}
+                  className={cn(
+                    "rounded-md border px-3 py-1.5 text-sm font-medium transition-colors",
+                    trialPreset === d
+                      ? "border-primary bg-primary/10 text-primary"
+                      : "border-border hover:bg-muted",
+                  )}
+                >
+                  {d} days
+                </button>
+              ))}
+            </div>
+            <div className="mt-3">
+              <label className="text-xs text-muted-foreground">Custom days</label>
+              <input
+                type="number"
+                min={1}
+                max={365}
+                value={trialDays}
+                onChange={(e) => { setTrialDays(e.target.value ? Number(e.target.value) : ""); setTrialPreset(null) }}
+                placeholder="e.g. 45"
+                className="mt-1 flex h-9 w-full rounded-md border border-input bg-background px-3 text-sm outline-none focus:ring-1 focus:ring-ring"
+              />
+            </div>
             <div className="mt-6 flex justify-end gap-2">
               <button
-                onClick={() => setShowDeleteConfirm(false)}
+                onClick={() => { setShowTrialDialog(false); setTrialDays(""); setTrialPreset(null) }}
                 className="rounded-md border border-border px-4 py-2 text-sm font-medium hover:bg-muted"
               >
                 Cancel
               </button>
               <button
-                onClick={() => { deleteMutation.mutate(); setShowDeleteConfirm(false) }}
-                disabled={deleteMutation.isPending}
-                className="rounded-md bg-red-500 px-4 py-2 text-sm font-medium text-white hover:bg-red-600"
+                onClick={() => { if (effectiveTrialDays > 0) trialMutation.mutate(effectiveTrialDays) }}
+                disabled={trialMutation.isPending || effectiveTrialDays <= 0}
+                className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
               >
-                {deleteMutation.isPending ? "Deleting..." : "Delete"}
+                {trialMutation.isPending ? "Extending..." : `Extend ${effectiveTrialDays > 0 ? `${effectiveTrialDays} days` : ""}`}
               </button>
             </div>
           </div>

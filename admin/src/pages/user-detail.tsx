@@ -1,12 +1,17 @@
 import { useState } from "react"
 import { useParams, useNavigate, Link } from "react-router-dom"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
+import { toast } from "sonner"
 import { api } from "@/lib/api"
 import { cn } from "@/lib/utils"
+import { timeAgo } from "@/lib/format"
+import { ConfirmDialog } from "@/components/confirm-dialog"
 import {
   ArrowLeft, User, Ban, Trash2, ChevronRight,
   Mail, Calendar, Shield, Clock,
 } from "lucide-react"
+import { useAuthStore } from "@/stores/auth-store"
+import { canPerform } from "@/lib/permissions"
 
 type Tab = "profile" | "workspaces" | "activity"
 
@@ -30,6 +35,8 @@ export function UserDetailPage() {
   const queryClient = useQueryClient()
   const [tab, setTab] = useState<Tab>("profile")
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const { admin } = useAuthStore()
+  const canEdit = canPerform(admin?.role || "", "admin")
 
   const { data: user, isLoading } = useQuery({
     queryKey: ["admin-user", userId],
@@ -55,8 +62,12 @@ export function UserDetailPage() {
       await api.post(`/api/admin/users/${userId}/${action}`)
     },
     onSuccess: () => {
+      toast.success(user?.isSystemSuspended ? "User unsuspended successfully" : "User suspended successfully")
       queryClient.invalidateQueries({ queryKey: ["admin-user", userId] })
       queryClient.invalidateQueries({ queryKey: ["admin-users"] })
+    },
+    onError: (err: any) => {
+      toast.error(err.response?.data?.error || "Failed to update user status")
     },
   })
 
@@ -65,8 +76,12 @@ export function UserDetailPage() {
       await api.delete(`/api/admin/users/${userId}`)
     },
     onSuccess: () => {
+      toast.success("User deleted successfully")
       queryClient.invalidateQueries({ queryKey: ["admin-users"] })
       navigate("/users")
+    },
+    onError: (err: any) => {
+      toast.error(err.response?.data?.error || "Failed to delete user")
     },
   })
 
@@ -145,28 +160,30 @@ export function UserDetailPage() {
             </div>
           </div>
         </div>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => suspendMutation.mutate()}
-            disabled={suspendMutation.isPending}
-            className={cn(
-              "inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
-              user.isSystemSuspended
-                ? "bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500/20"
-                : "bg-amber-500/10 text-amber-500 hover:bg-amber-500/20",
-            )}
-          >
-            <Ban className="h-3.5 w-3.5" />
-            {user.isSystemSuspended ? "Unsuspend" : "Suspend"}
-          </button>
-          <button
-            onClick={() => setShowDeleteConfirm(true)}
-            className="inline-flex items-center gap-1.5 rounded-md bg-red-500/10 px-3 py-1.5 text-sm font-medium text-red-500 hover:bg-red-500/20"
-          >
-            <Trash2 className="h-3.5 w-3.5" />
-            Delete
-          </button>
-        </div>
+        {canEdit && (
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => suspendMutation.mutate()}
+              disabled={suspendMutation.isPending}
+              className={cn(
+                "inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
+                user.isSystemSuspended
+                  ? "bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500/20"
+                  : "bg-amber-500/10 text-amber-500 hover:bg-amber-500/20",
+              )}
+            >
+              <Ban className="h-3.5 w-3.5" />
+              {user.isSystemSuspended ? "Unsuspend" : "Suspend"}
+            </button>
+            <button
+              onClick={() => setShowDeleteConfirm(true)}
+              className="inline-flex items-center gap-1.5 rounded-md bg-red-500/10 px-3 py-1.5 text-sm font-medium text-red-500 hover:bg-red-500/20"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+              Delete
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Status badge */}
@@ -202,8 +219,8 @@ export function UserDetailPage() {
             <div className="space-y-3">
               <InfoRow icon={User} label="Name" value={user.name || "Not set"} />
               <InfoRow icon={Mail} label="Email" value={user.email} />
-              <InfoRow icon={Calendar} label="Joined" value={new Date(user.createdAt).toLocaleDateString()} />
-              <InfoRow icon={Clock} label="Last Login" value={user.lastLoginAt ? new Date(user.lastLoginAt).toLocaleString() : "Never"} />
+              <InfoRow icon={Calendar} label="Joined" value={timeAgo(user.createdAt)} title={new Date(user.createdAt).toLocaleString()} />
+              <InfoRow icon={Clock} label="Last Login" value={user.lastLoginAt ? timeAgo(user.lastLoginAt) : "Never"} title={user.lastLoginAt ? new Date(user.lastLoginAt).toLocaleString() : ""} />
               <InfoRow icon={Shield} label="Status" value={user.isSystemSuspended ? "Suspended" : "Active"} />
             </div>
           </div>
@@ -286,7 +303,7 @@ export function UserDetailPage() {
                   <p className="text-xs text-muted-foreground">{entry.targetType || entry.resource || ""}</p>
                 </div>
                 <span className="text-xs text-muted-foreground">
-                  {entry.createdAt ? new Date(entry.createdAt).toLocaleString() : ""}
+                  <span title={entry.createdAt ? new Date(entry.createdAt).toLocaleString() : ""}>{entry.createdAt ? timeAgo(entry.createdAt) : ""}</span>
                 </span>
               </div>
             ))
@@ -294,42 +311,27 @@ export function UserDetailPage() {
         </div>
       )}
 
-      {/* Delete confirmation dialog */}
-      {showDeleteConfirm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-          <div className="w-full max-w-md rounded-lg border border-border bg-card p-6 shadow-lg">
-            <h2 className="text-lg font-bold">Delete User</h2>
-            <p className="mt-2 text-sm text-muted-foreground">
-              Are you sure you want to delete <strong>{user.name || user.email}</strong>? This action cannot be undone.
-            </p>
-            <div className="mt-6 flex justify-end gap-2">
-              <button
-                onClick={() => setShowDeleteConfirm(false)}
-                className="rounded-md border border-border px-4 py-2 text-sm font-medium hover:bg-muted"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={() => { deleteMutation.mutate(); setShowDeleteConfirm(false) }}
-                disabled={deleteMutation.isPending}
-                className="rounded-md bg-red-500 px-4 py-2 text-sm font-medium text-white hover:bg-red-600"
-              >
-                {deleteMutation.isPending ? "Deleting..." : "Delete"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <ConfirmDialog
+        open={showDeleteConfirm}
+        onClose={() => setShowDeleteConfirm(false)}
+        onConfirm={() => { deleteMutation.mutate(); setShowDeleteConfirm(false) }}
+        title="Delete User"
+        description={`Are you sure you want to delete "${user.name || user.email}"? This action cannot be undone.`}
+        confirmText="Delete"
+        typeToConfirm={user.name || user.email}
+        destructive
+        loading={deleteMutation.isPending}
+      />
     </div>
   )
 }
 
-function InfoRow({ icon: Icon, label, value }: { icon: React.ComponentType<{ className?: string }>; label: string; value: string }) {
+function InfoRow({ icon: Icon, label, value, title }: { icon: React.ComponentType<{ className?: string }>; label: string; value: string; title?: string }) {
   return (
     <div className="flex items-center gap-3">
       <Icon className="h-4 w-4 text-muted-foreground shrink-0" />
       <span className="text-sm text-muted-foreground w-24 shrink-0">{label}</span>
-      <span className="text-sm">{value}</span>
+      <span className="text-sm" title={title}>{value}</span>
     </div>
   )
 }

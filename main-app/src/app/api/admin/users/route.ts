@@ -12,6 +12,8 @@ export async function GET(request: NextRequest) {
     const limit = Math.min(100, Math.max(1, parseInt(searchParams.get("limit") || "20", 10)))
     const search = searchParams.get("search") || ""
     const suspended = searchParams.get("suspended")
+    const createdAfter = searchParams.get("createdAfter")
+    const status = searchParams.get("status")
     const sortBy = searchParams.get("sortBy") || "createdAt"
     const sortDir = searchParams.get("sortDir") === "asc" ? "asc" as const : "desc" as const
 
@@ -24,10 +26,17 @@ export async function GET(request: NextRequest) {
       ]
     }
 
-    if (suspended === "true") {
+    if (suspended === "true" || status === "suspended") {
       where.isSystemSuspended = true
-    } else if (suspended === "false") {
+    } else if (suspended === "false" || status === "active") {
       where.isSystemSuspended = false
+    }
+
+    if (createdAfter) {
+      const afterDate = new Date(createdAfter)
+      if (!isNaN(afterDate.getTime())) {
+        where.createdAt = { gte: afterDate }
+      }
     }
 
     const allowedSortFields: Record<string, Record<string, string>> = {

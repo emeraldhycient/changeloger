@@ -84,7 +84,7 @@ export async function PATCH(
         previousEmail: existing.email,
         previousName: existing.name,
       },
-      ipAddress: request.headers.get("x-forwarded-for") || undefined,
+      ipAddress: request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || request.headers.get("x-real-ip") || "unknown",
     })
 
     return Response.json({ user })
@@ -120,7 +120,7 @@ export async function DELETE(
         deletedEmail: existing.email,
         deletedName: existing.name,
       },
-      ipAddress: request.headers.get("x-forwarded-for") || undefined,
+      ipAddress: request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || request.headers.get("x-real-ip") || "unknown",
     })
 
     return Response.json({ success: true })

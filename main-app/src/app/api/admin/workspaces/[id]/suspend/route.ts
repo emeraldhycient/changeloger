@@ -29,12 +29,15 @@ export async function POST(
       },
     })
 
+    const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || request.headers.get("x-real-ip") || "unknown"
+
     await createAuditEntry({
       adminUserId: admin.adminId,
       action: "workspace.suspend",
       targetType: "workspace",
       targetId: id,
       metadata: reason ? { reason } : undefined,
+      ipAddress: ip,
     })
 
     return Response.json({ success: true })

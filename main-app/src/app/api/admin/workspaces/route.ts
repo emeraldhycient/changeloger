@@ -13,6 +13,7 @@ export async function GET(request: NextRequest) {
     const search = searchParams.get("search") || ""
     const plan = searchParams.get("plan")
     const suspended = searchParams.get("suspended")
+    const trial = searchParams.get("trial")
     const sortBy = searchParams.get("sortBy") || "createdAt"
     const sortDir = searchParams.get("sortDir") === "asc" ? "asc" as const : "desc" as const
 
@@ -33,6 +34,18 @@ export async function GET(request: NextRequest) {
       where.isSystemSuspended = true
     } else if (suspended === "false") {
       where.isSystemSuspended = false
+    }
+
+    if (trial === "active_trial") {
+      where.trialEndsAt = { gt: new Date() }
+    } else if (trial === "expired_trial") {
+      where.AND = [
+        ...(Array.isArray(where.AND) ? where.AND : []),
+        { trialEndsAt: { not: null } },
+        { trialEndsAt: { lte: new Date() } },
+      ]
+    } else if (trial === "no_trial") {
+      where.trialEndsAt = null
     }
 
     const allowedSortFields: Record<string, Record<string, string>> = {

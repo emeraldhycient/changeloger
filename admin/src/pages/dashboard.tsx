@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query"
 import { api } from "@/lib/api"
+import { timeAgo } from "@/lib/format"
 import { StatCard } from "@/components/stat-card"
 import {
   Users, Building2, FileText, Eye, DollarSign, Clock,
@@ -137,7 +138,7 @@ export function DashboardPage() {
           {growthData.length > 0 ? (
             <ResponsiveContainer width="100%" height={240}>
               <AreaChart data={growthData}>
-                <XAxis dataKey="date" tick={{ fontSize: 11 }} tickFormatter={(d: string) => d.slice(5)} />
+                <XAxis dataKey="date" tick={{ fontSize: 11 }} tickFormatter={(d: string) => { const date = new Date(d); return date.toLocaleDateString(undefined, { month: "short", day: "numeric" }) }} />
                 <YAxis tick={{ fontSize: 11 }} />
                 <Tooltip />
                 <Area type="monotone" dataKey="count" stroke="#3b82f6" fill="#3b82f680" strokeWidth={2} />
@@ -192,8 +193,8 @@ export function DashboardPage() {
                     <Activity className="h-3.5 w-3.5 text-muted-foreground" />
                     <span className="text-sm">{log.action}</span>
                   </div>
-                  <span className="text-xs text-muted-foreground">
-                    {log.createdAt ? new Date(log.createdAt).toLocaleString() : ""}
+                  <span className="text-xs text-muted-foreground" title={log.createdAt ? new Date(log.createdAt).toLocaleString() : ""}>
+                    {log.createdAt ? timeAgo(log.createdAt) : ""}
                   </span>
                 </div>
               ))}

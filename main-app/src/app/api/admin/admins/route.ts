@@ -83,7 +83,7 @@ export async function POST(request: NextRequest) {
         name: admin.name,
         role: admin.role,
       },
-      ipAddress: request.headers.get("x-forwarded-for") || undefined,
+      ipAddress: request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || request.headers.get("x-real-ip") || "unknown",
     })
 
     return Response.json({ admin }, { status: 201 })
