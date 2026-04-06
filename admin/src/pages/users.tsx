@@ -314,7 +314,7 @@ export function UsersPage() {
                   <td className="px-4 py-3 text-muted-foreground">{user.email}</td>
                   <td className="px-4 py-3 text-muted-foreground">{user._count?.workspaceMembers ?? user.workspaceCount ?? "\u2014"}</td>
                   <td className="px-4 py-3 text-muted-foreground">
-                    {(user.accounts ?? []).map((a: any) => a.provider).join(", ") || "\u2014"}
+                    {(user.oauthAccounts ?? user.accounts ?? []).map((a: any) => a.provider).join(", ") || "\u2014"}
                   </td>
                   <td className="px-4 py-3">
                     <span className={cn(

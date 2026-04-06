@@ -27,6 +27,11 @@ export async function GET(
             },
           },
         },
+        sessions: {
+          orderBy: { createdAt: "desc" },
+          take: 1,
+          select: { createdAt: true },
+        },
         _count: {
           select: { memberships: true, publishedReleases: true },
         },
@@ -37,7 +42,13 @@ export async function GET(
       throw new NotFoundError("User not found")
     }
 
-    return Response.json({ user })
+    const enrichedUser = {
+      ...user,
+      lastLoginAt: user.sessions[0]?.createdAt ?? null,
+      sessions: undefined,
+    }
+
+    return Response.json({ user: enrichedUser })
   } catch (error) {
     return handleApiError(error)
   }

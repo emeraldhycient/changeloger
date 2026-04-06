@@ -289,9 +289,9 @@ export function UserDetailPage() {
           </div>
           <div className="space-y-4 rounded-lg border border-border p-5">
             <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">OAuth Providers</h3>
-            {user.accounts && user.accounts.length > 0 ? (
+            {(user.oauthAccounts ?? user.accounts)?.length > 0 ? (
               <div className="space-y-2">
-                {user.accounts.map((acct: any, i: number) => (
+                {(user.oauthAccounts ?? user.accounts ?? []).map((acct: any, i: number) => (
                   <div key={i} className="flex items-center gap-2 rounded-md bg-muted/50 px-3 py-2 text-sm">
                     <span className="font-medium capitalize">{acct.provider}</span>
                     {acct.providerUserId && (
