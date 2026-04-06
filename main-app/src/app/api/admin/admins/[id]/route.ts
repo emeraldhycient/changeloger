@@ -115,7 +115,7 @@ export async function PATCH(
         previousRole: existing.role,
         previousIsActive: existing.isActive,
       },
-      ipAddress: request.headers.get("x-forwarded-for") || undefined,
+      ipAddress: request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || request.headers.get("x-real-ip") || "unknown",
     })
 
     return Response.json({ admin })
@@ -165,7 +165,7 @@ export async function DELETE(
         deactivatedEmail: existing.email,
         deactivatedName: existing.name,
       },
-      ipAddress: request.headers.get("x-forwarded-for") || undefined,
+      ipAddress: request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || request.headers.get("x-real-ip") || "unknown",
     })
 
     return Response.json({ admin })

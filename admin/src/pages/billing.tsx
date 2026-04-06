@@ -1,9 +1,11 @@
 import { useQuery } from "@tanstack/react-query"
+import { toast } from "sonner"
 import { api } from "@/lib/api"
 import { StatCard } from "@/components/stat-card"
 import { Link } from "react-router-dom"
 import { cn } from "@/lib/utils"
-import { DollarSign, TrendingUp, CreditCard, Clock, AlertTriangle } from "lucide-react"
+import { exportToCSV } from "@/lib/export"
+import { DollarSign, TrendingUp, CreditCard, Clock, AlertTriangle, Download } from "lucide-react"
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from "recharts"
 
 const PIE_COLORS = ["#6b7280", "#3b82f6", "#8b5cf6", "#f59e0b"]
@@ -70,9 +72,28 @@ export function BillingPage() {
 
   return (
     <div className="space-y-8">
-      <div>
-        <h1 className="text-2xl font-bold">Billing</h1>
-        <p className="text-sm text-muted-foreground">Revenue metrics and subscription management</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold">Billing</h1>
+          <p className="text-sm text-muted-foreground">Revenue metrics and subscription management</p>
+        </div>
+        <button
+          onClick={() => {
+            const exportData = churnRisk.map((ws: any) => ({
+              id: ws.id,
+              name: ws.name,
+              plan: ws.plan,
+              riskReason: ws.riskReason || ws.reason || "Inactivity",
+              lastActiveAt: ws.lastActiveAt || "",
+            }))
+            exportToCSV(exportData, "billing-churn-risk-export")
+            toast.success("Billing data exported to CSV")
+          }}
+          className="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-sm font-medium hover:bg-muted"
+        >
+          <Download className="h-3.5 w-3.5" />
+          Export CSV
+        </button>
       </div>
 
       {/* Revenue Cards */}

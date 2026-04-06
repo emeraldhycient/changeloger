@@ -68,10 +68,10 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
                     end={item.to === "/"}
                     className={({ isActive }) =>
                       cn(
-                        "flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors",
+                        "flex items-center gap-3 my-4 px-3 py-2 text-sm transition-colors",
                         isActive
                           ? "border-l-2 border-primary bg-accent text-accent-foreground font-medium"
-                          : "border-l-2 border-transparent text-muted-foreground hover:bg-accent/50 hover:text-foreground",
+                          : "border-transparent text-muted-foreground hover:bg-accent/50 hover:text-foreground",
                       )
                     }
                   >

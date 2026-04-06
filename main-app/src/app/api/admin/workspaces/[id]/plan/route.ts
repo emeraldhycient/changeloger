@@ -35,12 +35,15 @@ export async function PATCH(
       data: { plan: parsed.data.plan },
     })
 
+    const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || request.headers.get("x-real-ip") || "unknown"
+
     await createAuditEntry({
       adminUserId: admin.adminId,
       action: "workspace.plan_change",
       targetType: "workspace",
       targetId: id,
       metadata: { previousPlan, newPlan: parsed.data.plan },
+      ipAddress: ip,
     })
 
     return Response.json({ success: true })

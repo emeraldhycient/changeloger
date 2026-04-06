@@ -1,7 +1,11 @@
 import { useState } from "react"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
+import { toast } from "sonner"
 import { api } from "@/lib/api"
 import { cn } from "@/lib/utils"
+import { ConfirmDialog } from "@/components/confirm-dialog"
+import { useAuthStore } from "@/stores/auth-store"
+import { canPerform } from "@/lib/permissions"
 import { Plus, Shield, ChevronDown } from "lucide-react"
 
 const roleColors: Record<string, string> = {
@@ -15,9 +19,12 @@ const ROLES = ["super_admin", "admin", "moderator", "viewer"]
 
 export function AdminsPage() {
   const queryClient = useQueryClient()
+  const { admin: currentAdmin } = useAuthStore()
+  const canEdit = canPerform(currentAdmin?.role || "", "admin")
   const [showCreate, setShowCreate] = useState(false)
   const [roleMenuId, setRoleMenuId] = useState<string | null>(null)
   const [createForm, setCreateForm] = useState({ email: "", password: "", name: "", role: "admin" })
+  const [passwordError, setPasswordError] = useState("")
 
   const { data: admins = [], isLoading } = useQuery({
     queryKey: ["admin-admins"],
@@ -27,14 +34,20 @@ export function AdminsPage() {
     },
   })
 
+  const [deleteConfirm, setDeleteConfirm] = useState<{ open: boolean; id: string; name: string }>({ open: false, id: "", name: "" })
+
   const createMutation = useMutation({
     mutationFn: async (payload: typeof createForm) => {
       await api.post("/api/admin/admins", payload)
     },
     onSuccess: () => {
+      toast.success("Admin created successfully")
       queryClient.invalidateQueries({ queryKey: ["admin-admins"] })
       setShowCreate(false)
       setCreateForm({ email: "", password: "", name: "", role: "admin" })
+    },
+    onError: (err: any) => {
+      toast.error(err.response?.data?.error || "Failed to create admin")
     },
   })
 
@@ -43,8 +56,12 @@ export function AdminsPage() {
       await api.patch(`/api/admin/admins/${id}`, payload)
     },
     onSuccess: () => {
+      toast.success("Admin updated successfully")
       queryClient.invalidateQueries({ queryKey: ["admin-admins"] })
       setRoleMenuId(null)
+    },
+    onError: (err: any) => {
+      toast.error(err.response?.data?.error || "Failed to update admin")
     },
   })
 
@@ -53,7 +70,11 @@ export function AdminsPage() {
       await api.delete(`/api/admin/admins/${id}`)
     },
     onSuccess: () => {
+      toast.success("Admin deleted successfully")
       queryClient.invalidateQueries({ queryKey: ["admin-admins"] })
+    },
+    onError: (err: any) => {
+      toast.error(err.response?.data?.error || "Failed to delete admin")
     },
   })
 
@@ -64,13 +85,15 @@ export function AdminsPage() {
           <h1 className="text-2xl font-bold">Admins</h1>
           <p className="text-sm text-muted-foreground">Manage admin users and roles</p>
         </div>
-        <button
-          onClick={() => setShowCreate(true)}
-          className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:bg-primary/90"
-        >
-          <Plus className="h-3.5 w-3.5" />
-          Create Admin
-        </button>
+        {canEdit && (
+          <button
+            onClick={() => setShowCreate(true)}
+            className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+          >
+            <Plus className="h-3.5 w-3.5" />
+            Create Admin
+          </button>
+        )}
       </div>
 
       {/* Table */}
@@ -155,22 +178,22 @@ export function AdminsPage() {
                     </span>
                   </td>
                   <td className="px-4 py-3">
-                    <div className="flex items-center gap-2">
-                      <button
-                        onClick={() => updateMutation.mutate({ id: admin.id, isActive: admin.isActive === false })}
-                        className="text-xs text-muted-foreground hover:text-foreground"
-                      >
-                        {admin.isActive !== false ? "Deactivate" : "Activate"}
-                      </button>
-                      <button
-                        onClick={() => {
-                          if (confirm("Delete this admin?")) deleteMutation.mutate(admin.id)
-                        }}
-                        className="text-xs text-red-500 hover:text-red-400"
-                      >
-                        Delete
-                      </button>
-                    </div>
+                    {canEdit && (
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => updateMutation.mutate({ id: admin.id, isActive: admin.isActive === false })}
+                          className="text-xs text-muted-foreground hover:text-foreground"
+                        >
+                          {admin.isActive !== false ? "Deactivate" : "Activate"}
+                        </button>
+                        <button
+                          onClick={() => setDeleteConfirm({ open: true, id: admin.id, name: admin.name || admin.email })}
+                          className="text-xs text-red-500 hover:text-red-400"
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    )}
                   </td>
                 </tr>
               ))
@@ -187,6 +210,11 @@ export function AdminsPage() {
             <form
               onSubmit={(e) => {
                 e.preventDefault()
+                if (createForm.password.length < 8) {
+                  setPasswordError("Password must be at least 8 characters")
+                  return
+                }
+                setPasswordError("")
                 createMutation.mutate(createForm)
               }}
               className="mt-4 space-y-4"
@@ -215,10 +243,20 @@ export function AdminsPage() {
                 <input
                   type="password"
                   value={createForm.password}
-                  onChange={(e) => setCreateForm({ ...createForm, password: e.target.value })}
-                  className="flex h-9 w-full rounded-md border border-input bg-background px-3 text-sm outline-none focus:ring-1 focus:ring-ring"
+                  onChange={(e) => {
+                    setCreateForm({ ...createForm, password: e.target.value })
+                    if (passwordError && e.target.value.length >= 8) setPasswordError("")
+                  }}
+                  className={cn(
+                    "flex h-9 w-full rounded-md border bg-background px-3 text-sm outline-none focus:ring-1 focus:ring-ring",
+                    passwordError ? "border-red-500" : "border-input",
+                  )}
                   required
+                  minLength={8}
                 />
+                {passwordError && (
+                  <p className="mt-1 text-xs text-red-500">{passwordError}</p>
+                )}
               </div>
               <div>
                 <label className="mb-1 block text-sm font-medium">Role</label>
@@ -252,6 +290,21 @@ export function AdminsPage() {
           </div>
         </div>
       )}
+
+      <ConfirmDialog
+        open={deleteConfirm.open}
+        onClose={() => setDeleteConfirm({ open: false, id: "", name: "" })}
+        onConfirm={() => {
+          deleteMutation.mutate(deleteConfirm.id)
+          setDeleteConfirm({ open: false, id: "", name: "" })
+        }}
+        title="Delete Admin"
+        description={`Are you sure you want to delete admin "${deleteConfirm.name}"? This action cannot be undone.`}
+        confirmText="Delete"
+        typeToConfirm={deleteConfirm.name}
+        destructive
+        loading={deleteMutation.isPending}
+      />
     </div>
   )
 }

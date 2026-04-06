@@ -1,9 +1,12 @@
 import { NextRequest, NextResponse } from "next/server"
+import { checkRateLimit } from "@/lib/auth/rate-limit"
 
 const PROTECTED_PATHS = ["/dashboard"]
 const AUTH_PAGES = ["/sign-in", "/sign-up"]
 const ACCESS_TOKEN_COOKIE = "changeloger_token"
 const REFRESH_TOKEN_COOKIE = "changeloger_refresh"
+
+const MUTATION_METHODS = new Set(["POST", "PATCH", "PUT", "DELETE"])
 
 export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl
@@ -24,6 +27,22 @@ export function proxy(request: NextRequest) {
   if (AUTH_PAGES.some((p) => pathname === p)) {
     if (isAuthenticated) {
       return NextResponse.redirect(new URL("/dashboard", request.url))
+    }
+  }
+
+  // Rate limit admin mutation endpoints
+  if (pathname.startsWith("/api/admin") && MUTATION_METHODS.has(request.method)) {
+    const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim()
+      || request.headers.get("x-real-ip")
+      || "unknown"
+    if (!checkRateLimit(ip)) {
+      return new NextResponse(
+        JSON.stringify({ error: "Too many requests. Please try again later." }),
+        {
+          status: 429,
+          headers: { "Content-Type": "application/json", "Retry-After": "60" },
+        },
+      )
     }
   }
 

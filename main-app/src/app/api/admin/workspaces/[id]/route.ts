@@ -70,7 +70,7 @@ export async function DELETE(
         deletedSlug: existing.slug,
         deletedPlan: existing.plan,
       },
-      ipAddress: request.headers.get("x-forwarded-for") || undefined,
+      ipAddress: request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || request.headers.get("x-real-ip") || "unknown",
     })
 
     return Response.json({ success: true })
