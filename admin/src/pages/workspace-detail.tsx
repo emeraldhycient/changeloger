@@ -44,7 +44,7 @@ export function WorkspaceDetailPage() {
   const suspendMutation = useMutation({
     mutationFn: async () => {
       const action = workspace?.isSystemSuspended ? "unsuspend" : "suspend"
-      await api.patch(`/api/admin/workspaces/${workspaceId}`, { action })
+      await api.post(`/api/admin/workspaces/${workspaceId}/${action}`)
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin-workspace", workspaceId] })
@@ -54,7 +54,7 @@ export function WorkspaceDetailPage() {
 
   const planMutation = useMutation({
     mutationFn: async (plan: string) => {
-      await api.patch(`/api/admin/workspaces/${workspaceId}`, { plan })
+      await api.patch(`/api/admin/workspaces/${workspaceId}/plan`, { plan })
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin-workspace", workspaceId] })
@@ -105,7 +105,6 @@ export function WorkspaceDetailPage() {
     { label: "Repositories", value: counts.repositories ?? 0, icon: GitBranch },
     { label: "Releases", value: counts.releases ?? 0, icon: FileText },
     { label: "Widgets", value: counts.widgets ?? 0, icon: Eye },
-    { label: "Changes", value: counts.changes ?? counts.changelogs ?? 0, icon: FileText },
   ]
 
   const plans = ["free", "pro", "team", "enterprise"]

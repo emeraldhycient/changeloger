@@ -12,6 +12,8 @@ export async function GET(request: NextRequest) {
     const limit = Math.min(100, Math.max(1, parseInt(searchParams.get("limit") || "20", 10)))
     const search = searchParams.get("search") || ""
     const suspended = searchParams.get("suspended")
+    const sortBy = searchParams.get("sortBy") || "createdAt"
+    const sortDir = searchParams.get("sortDir") === "asc" ? "asc" as const : "desc" as const
 
     const where: Record<string, unknown> = {}
 
@@ -28,22 +30,41 @@ export async function GET(request: NextRequest) {
       where.isSystemSuspended = false
     }
 
+    const allowedSortFields: Record<string, Record<string, string>> = {
+      createdAt: { createdAt: sortDir },
+      name: { name: sortDir },
+      email: { email: sortDir },
+    }
+    const orderBy = allowedSortFields[sortBy] || { createdAt: sortDir }
+
     const [users, total] = await Promise.all([
       prisma.user.findMany({
         where,
         skip: (page - 1) * limit,
         take: limit,
-        orderBy: { createdAt: "desc" },
+        orderBy,
         include: {
           oauthAccounts: { select: { provider: true } },
+          sessions: {
+            orderBy: { createdAt: "desc" },
+            take: 1,
+            select: { createdAt: true },
+          },
           _count: { select: { memberships: true } },
         },
       }),
       prisma.user.count({ where }),
     ])
 
+    const enrichedUsers = users.map((user) => ({
+      ...user,
+      lastLoginAt: user.sessions[0]?.createdAt ?? null,
+      workspaceCount: user._count.memberships,
+      sessions: undefined,
+    }))
+
     return Response.json({
-      users,
+      users: enrichedUsers,
       pagination: {
         page,
         limit,

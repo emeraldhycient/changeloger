@@ -52,7 +52,7 @@ export function UserDetailPage() {
   const suspendMutation = useMutation({
     mutationFn: async () => {
       const action = user?.isSystemSuspended ? "unsuspend" : "suspend"
-      await api.patch(`/api/admin/users/${userId}`, { action })
+      await api.post(`/api/admin/users/${userId}/${action}`)
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin-user", userId] })
@@ -90,7 +90,29 @@ export function UserDetailPage() {
     )
   }
 
-  const activities = activityData?.activities ?? activityData ?? []
+  // Map API response { recentReleases, recentEntries, workspaceMemberships } into unified activity list
+  const activities: any[] = (() => {
+    if (!activityData) return []
+    if (Array.isArray(activityData)) return activityData
+    if (activityData.activities) return activityData.activities
+    const unified: any[] = []
+    if (activityData.recentReleases) {
+      for (const r of activityData.recentReleases) {
+        unified.push({ id: r.id, action: "Published release", targetType: r.title || "release", createdAt: r.createdAt || r.publishedAt })
+      }
+    }
+    if (activityData.recentEntries) {
+      for (const e of activityData.recentEntries) {
+        unified.push({ id: e.id, action: "Created entry", targetType: e.title || "entry", createdAt: e.createdAt })
+      }
+    }
+    if (activityData.workspaceMemberships) {
+      for (const m of activityData.workspaceMemberships) {
+        unified.push({ id: m.id, action: `Joined workspace`, targetType: m.workspace?.name || m.workspaceName || "workspace", createdAt: m.createdAt })
+      }
+    }
+    return unified.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+  })()
 
   const tabs: { key: Tab; label: string }[] = [
     { key: "profile", label: "Profile" },
@@ -192,8 +214,8 @@ export function UserDetailPage() {
                 {user.accounts.map((acct: any, i: number) => (
                   <div key={i} className="flex items-center gap-2 rounded-md bg-muted/50 px-3 py-2 text-sm">
                     <span className="font-medium capitalize">{acct.provider}</span>
-                    {acct.providerAccountId && (
-                      <span className="text-xs text-muted-foreground">({acct.providerAccountId})</span>
+                    {acct.providerUserId && (
+                      <span className="text-xs text-muted-foreground">({acct.providerUserId})</span>
                     )}
                   </div>
                 ))}

@@ -51,9 +51,9 @@ export async function GET(request: NextRequest) {
 
     return Response.json({
       days,
-      newUsers: serialize(newUsers),
-      newWorkspaces: serialize(newWorkspaces),
-      publishedReleases: serialize(publishedReleases),
+      userGrowth: serialize(newUsers),
+      workspaceGrowth: serialize(newWorkspaces),
+      releaseActivity: serialize(publishedReleases),
     })
   } catch (error) {
     return handleApiError(error)

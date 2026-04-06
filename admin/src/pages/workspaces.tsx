@@ -44,7 +44,7 @@ export function WorkspacesPage() {
 
   const suspendMutation = useMutation({
     mutationFn: async ({ id, suspend }: { id: string; suspend: boolean }) => {
-      await api.patch(`/api/admin/workspaces/${id}`, { action: suspend ? "suspend" : "unsuspend" })
+      await api.post(`/api/admin/workspaces/${id}/${suspend ? "suspend" : "unsuspend"}`)
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin-workspaces"] })
@@ -53,7 +53,7 @@ export function WorkspacesPage() {
 
   const planMutation = useMutation({
     mutationFn: async ({ id, plan }: { id: string; plan: string }) => {
-      await api.patch(`/api/admin/workspaces/${id}`, { plan })
+      await api.patch(`/api/admin/workspaces/${id}/plan`, { plan })
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin-workspaces"] })
