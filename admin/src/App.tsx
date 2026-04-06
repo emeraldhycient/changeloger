@@ -1,11 +1,14 @@
 import { useEffect } from "react"
-import { Routes, Route, Navigate } from "react-router-dom"
+import { Routes, Route, Navigate, useNavigate } from "react-router-dom"
 import { toast } from "sonner"
 import { useAuthStore } from "@/stores/auth-store"
 import { startIdleTimer } from "@/lib/session-timeout"
+import { useNavigationShortcuts } from "@/lib/keyboard-shortcuts"
 import { AdminLayout } from "@/components/layout/admin-layout"
 import { ErrorBoundary } from "@/components/error-boundary"
 import { CommandPalette } from "@/components/command-palette"
+import { KeyboardShortcutsDialog } from "@/components/keyboard-shortcuts-dialog"
+import { OnboardingDialog } from "@/components/onboarding"
 import { LoginPage } from "@/pages/login"
 import { DashboardPage } from "@/pages/dashboard"
 import { UsersPage } from "@/pages/users"
@@ -20,6 +23,7 @@ import { SystemPage } from "@/pages/system"
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { hydrate } = useAuthStore()
+  const navigate = useNavigate()
   useEffect(() => { hydrate() }, [hydrate])
 
   useEffect(() => {
@@ -28,6 +32,9 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
       useAuthStore.getState().logout()
     })
   }, [])
+
+  // Two-key navigation shortcuts (g+d, g+u, etc.)
+  useNavigationShortcuts(navigate)
 
   if (!localStorage.getItem("admin_token")) {
     return <Navigate to="/login" replace />
@@ -60,6 +67,8 @@ export function App() {
               </ErrorBoundary>
             </AdminLayout>
             <CommandPalette />
+            <KeyboardShortcutsDialog />
+            <OnboardingDialog />
           </ProtectedRoute>
         }
       />
