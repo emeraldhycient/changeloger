@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+</head>
+<body>
+    <script async src="http://localhost:3000/widget/changeloger.js" data-token="cf51d0a0-ec79-4f31-b201-6d04b1adb735"
+        data-type="modal" data-theme="auto"></script>
+            <p>
+                Here's exactly what to fill in on the GitHub App creation form:
+                
+                ## Basic Information
+                
+                | Field | Value |
+                |-------|-------|
+                | **GitHub App name** | `Changeloger` (or `Changeloger-dev` for development) |
+                | **Homepage URL** | Your production URL (e.g. `https://changeloger.dev`) or `http://localhost:3000` for dev |
+                | **Description** | "Automated changelog generation from your commits, PRs, and releases." |
+                
+                ## Identifying and authorizing users
+                
+                | Field | Value |
+                |-------|-------|
+                | **Callback URL** | `http://localhost:3000/api/auth/callback/github` (add production URL later) |
+                | **Request user authorization (OAuth) during installation** | **Checked** |
+                | **Enable Device Flow** | Unchecked |
+                
+                ## Post installation
+                
+                | Field | Value |
+                |-------|-------|
+                | **Setup URL (optional)** | `http://localhost:3000/api/github/installation` |
+                | **Redirect on update** | Checked |
+                
+                ## Webhook
+                
+                | Field | Value |
+                |-------|-------|
+                | **Active** | **Checked** |
+                | **Webhook URL** | `https://your-public-url/api/webhooks/github` (use smee.io or ngrok for local dev) |
+                | **Webhook secret** | Generate a strong random string — save it as `GITHUB_WEBHOOK_SECRET` in `.env` |
+                
+                ## Repository Permissions
+                
+                | Permission | Access |
+                |------------|--------|
+                | **Contents** | **Read-only** |
+                | **Metadata** | **Read-only** (required, auto-selected) |
+                | **Pull requests** | **Read-only** |
+                | **Commit statuses** | **Read-only** |
+                
+                ## Organization Permissions
+                
+                | Permission | Access |
+                |------------|--------|
+                | **Members** | **Read-only** (optional, useful for team features) |
+                
+                ## Account Permissions
+                
+                None needed.
+                
+                ## Subscribe to Events
+                
+                Check these:
+                - **Push** — triggers commit analysis
+                - **Create** — triggers tag/version detection
+                - **Release** — triggers release note generation
+                - **Pull request** — tracks PR-based changes
+                
+                ## Where can this GitHub App be installed?
+                
+                Select **"Any account"** (so other users/orgs can install it).
+                
+                ---
+                
+                ## After Creation
+                
+                GitHub will show you these values — add them all to your `.env`:
+                
+                ```bash
+                GITHUB_APP_ID=123456
+                GITHUB_APP_CLIENT_ID=Iv1.xxxxxxxxxx
+                GITHUB_APP_CLIENT_SECRET=xxxxxxxxxxxxxxxx
+                GITHUB_APP_PRIVATE_KEY="-----BEGIN RSA PRIVATE KEY-----\n...\n-----END RSA PRIVATE KEY-----"
+                GITHUB_WEBHOOK_SECRET=your-webhook-secret
+                ```
+                
+                The **Client ID** and **Client Secret** are what your OAuth flow (`src/lib/auth/oauth.ts`) already uses. The **App ID**
+                and **Private Key** are for authenticating as the GitHub App to access installation endpoints (repos, webhooks). You'll
+                download the private key as a `.pem` file — store the contents in the env var with `\n` for newlines.
+            </p>
+            <P>
+                Push to GitHub
+                │
+                ▼
+                CHANGE RECORDS (10 rows) ──── Raw detected changes
+                │ • One row per commit/tag/release event
+                │ • Stores: subject, body, commit SHA, files changed, authors
+                │ • processedAt tracks if it's been converted to an entry
+                │
+                ▼ (generate service)
+                CHANGELOG ENTRIES (3 rows) ── Polished, human-readable entries
+                │ • Grouped/summarized from change records
+                │ • Stores: category, title, description, impact, breaking, reviewed
+                │ • Linked to a Release via releaseId
+                │ • Position field for drag-and-drop ordering
+                │
+                ▼ (belongs to)
+                RELEASES (3 rows) ─────────── Versioned changelog releases
+                │ • version (e.g. "2026.4.5"), status (draft/published/archived)
+                │ • Can be linked to a repository OR workspace-level (manual)
+                │ • summary field gets populated with rendered Markdown on publish
+                │
+                ▼ (on publish)
+                RELEASE REVISIONS (2 rows) ── Snapshots at publish time
+                • Stores full JSON snapshot of all entries + rendered Markdown/HTML/JSON
+                • Created by publishRelease() — one revision per publish
+                • Acts as version history / audit trail
+
+            </P>
+</body>
+</html>
+
+
