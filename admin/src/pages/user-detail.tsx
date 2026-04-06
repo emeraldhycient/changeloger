@@ -8,12 +8,12 @@ import { timeAgo } from "@/lib/format"
 import { ConfirmDialog } from "@/components/confirm-dialog"
 import {
   ArrowLeft, User, Ban, Trash2, ChevronRight,
-  Mail, Calendar, Shield, Clock,
+  Mail, Calendar, Shield, Clock, LogOut, Eye,
 } from "lucide-react"
 import { useAuthStore } from "@/stores/auth-store"
 import { canPerform } from "@/lib/permissions"
 
-type Tab = "profile" | "workspaces" | "activity"
+type Tab = "profile" | "workspaces" | "sessions" | "activity"
 
 const planColors: Record<string, string> = {
   free: "bg-gray-500/10 text-gray-400",
@@ -35,8 +35,10 @@ export function UserDetailPage() {
   const queryClient = useQueryClient()
   const [tab, setTab] = useState<Tab>("profile")
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [showRevokeConfirm, setShowRevokeConfirm] = useState(false)
   const { admin } = useAuthStore()
   const canEdit = canPerform(admin?.role || "", "admin")
+  const canImpersonate = canPerform(admin?.role || "", "superadmin")
 
   const { data: user, isLoading } = useQuery({
     queryKey: ["admin-user", userId],
@@ -45,6 +47,15 @@ export function UserDetailPage() {
       return data.user || data
     },
     enabled: !!userId,
+  })
+
+  const { data: sessionsData } = useQuery({
+    queryKey: ["admin-user-sessions", userId],
+    queryFn: async () => {
+      const { data } = await api.get(`/api/admin/users/${userId}/sessions`)
+      return data
+    },
+    enabled: !!userId && tab === "sessions",
   })
 
   const { data: activityData } = useQuery({
@@ -82,6 +93,37 @@ export function UserDetailPage() {
     },
     onError: (err: any) => {
       toast.error(err.response?.data?.error || "Failed to delete user")
+    },
+  })
+
+  const revokeSessionsMutation = useMutation({
+    mutationFn: async () => {
+      const { data } = await api.delete(`/api/admin/users/${userId}/sessions`)
+      return data
+    },
+    onSuccess: (data) => {
+      toast.success(`Revoked ${data.sessionsRevoked ?? 0} session(s)`)
+      setShowRevokeConfirm(false)
+    },
+    onError: (err: any) => {
+      toast.error(err.response?.data?.error || "Failed to revoke sessions")
+    },
+  })
+
+  const impersonateMutation = useMutation({
+    mutationFn: async () => {
+      const { data } = await api.post(`/api/admin/users/${userId}/impersonate`)
+      return data
+    },
+    onSuccess: (data) => {
+      // Open the main app in a new tab with the impersonation token
+      const appUrl = window.location.origin.replace(/:\d+$/, ":3000")
+      const url = `${appUrl}/impersonate?token=${data.accessToken}`
+      window.open(url, "_blank")
+      toast.success(`Impersonating ${data.user?.name || data.user?.email}. Session expires in 15 minutes.`)
+    },
+    onError: (err: any) => {
+      toast.error(err.response?.data?.error || "Failed to impersonate user")
     },
   })
 
@@ -129,9 +171,12 @@ export function UserDetailPage() {
     return unified.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
   })()
 
+  const sessions = sessionsData?.sessions ?? []
+
   const tabs: { key: Tab; label: string }[] = [
     { key: "profile", label: "Profile" },
     { key: "workspaces", label: "Workspaces" },
+    { key: "sessions", label: `Sessions (${tab === "sessions" ? sessions.length : "…"})` },
     { key: "activity", label: "Activity" },
   ]
 
@@ -162,6 +207,24 @@ export function UserDetailPage() {
         </div>
         {canEdit && (
           <div className="flex items-center gap-2">
+            {canImpersonate && (
+              <button
+                onClick={() => impersonateMutation.mutate()}
+                disabled={impersonateMutation.isPending}
+                className="inline-flex items-center gap-1.5 rounded-md bg-blue-500/10 px-3 py-1.5 text-sm font-medium text-blue-500 hover:bg-blue-500/20 disabled:opacity-50"
+                title="View as this user (opens in new tab)"
+              >
+                <Eye className="h-3.5 w-3.5" />
+                {impersonateMutation.isPending ? "Opening..." : "Impersonate"}
+              </button>
+            )}
+            <button
+              onClick={() => setShowRevokeConfirm(true)}
+              className="inline-flex items-center gap-1.5 rounded-md bg-orange-500/10 px-3 py-1.5 text-sm font-medium text-orange-500 hover:bg-orange-500/20"
+            >
+              <LogOut className="h-3.5 w-3.5" />
+              Revoke Sessions
+            </button>
             <button
               onClick={() => suspendMutation.mutate()}
               disabled={suspendMutation.isPending}
@@ -288,6 +351,58 @@ export function UserDetailPage() {
         </div>
       )}
 
+      {tab === "sessions" && (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h3 className="text-sm font-semibold">Active Sessions</h3>
+            {canEdit && sessions.length > 0 && (
+              <button
+                onClick={() => setShowRevokeConfirm(true)}
+                className="inline-flex items-center gap-1.5 rounded-md bg-red-500/10 px-3 py-1.5 text-xs font-medium text-red-500 hover:bg-red-500/20"
+              >
+                <LogOut className="h-3 w-3" />
+                Revoke All
+              </button>
+            )}
+          </div>
+          {sessions.length === 0 ? (
+            <div className="flex flex-col items-center justify-center rounded-lg border border-dashed border-border py-12">
+              <LogOut className="h-8 w-8 text-muted-foreground" />
+              <p className="mt-3 text-sm text-muted-foreground">No active sessions</p>
+            </div>
+          ) : (
+            <div className="rounded-lg border border-border">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-border bg-muted/50">
+                    <th className="px-4 py-3 text-left font-medium text-muted-foreground">IP Address</th>
+                    <th className="px-4 py-3 text-left font-medium text-muted-foreground">User Agent</th>
+                    <th className="px-4 py-3 text-left font-medium text-muted-foreground">Created</th>
+                    <th className="px-4 py-3 text-left font-medium text-muted-foreground">Expires</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {sessions.map((s: any) => (
+                    <tr key={s.id} className="border-b border-border last:border-0 hover:bg-muted/30">
+                      <td className="px-4 py-3 font-mono text-xs">{s.ipAddress || "—"}</td>
+                      <td className="px-4 py-3 max-w-xs truncate text-xs text-muted-foreground" title={s.userAgent || ""}>
+                        {s.userAgent ? (s.userAgent.length > 60 ? s.userAgent.slice(0, 60) + "…" : s.userAgent) : "—"}
+                      </td>
+                      <td className="px-4 py-3 text-xs text-muted-foreground" title={s.createdAt ? new Date(s.createdAt).toLocaleString() : ""}>
+                        {s.createdAt ? timeAgo(s.createdAt) : "—"}
+                      </td>
+                      <td className="px-4 py-3 text-xs text-muted-foreground" title={s.expiresAt ? new Date(s.expiresAt).toLocaleString() : ""}>
+                        {s.expiresAt ? new Date(s.expiresAt).toLocaleDateString() : "—"}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
+
       {tab === "activity" && (
         <div className="space-y-2">
           {(Array.isArray(activities) ? activities : []).length === 0 ? (
@@ -321,6 +436,17 @@ export function UserDetailPage() {
         typeToConfirm={user.name || user.email}
         destructive
         loading={deleteMutation.isPending}
+      />
+
+      <ConfirmDialog
+        open={showRevokeConfirm}
+        onClose={() => setShowRevokeConfirm(false)}
+        onConfirm={() => revokeSessionsMutation.mutate()}
+        title="Revoke All Sessions"
+        description={`This will immediately log out "${user.name || user.email}" from all devices by deleting all active sessions.`}
+        confirmText="Revoke"
+        destructive
+        loading={revokeSessionsMutation.isPending}
       />
     </div>
   )

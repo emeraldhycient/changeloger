@@ -25,13 +25,31 @@ export function ConfirmDialog({
 }: ConfirmDialogProps) {
   const [typed, setTyped] = useState("")
 
+  const canConfirm = typeToConfirm ? typed === typeToConfirm : true
+
   useEffect(() => {
     if (!open) setTyped("")
   }, [open])
 
-  if (!open) return null
+  // Escape to close, Enter to confirm
+  useEffect(() => {
+    if (!open) return
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") {
+        e.preventDefault()
+        onClose()
+      }
+      if (e.key === "Enter" && canConfirm && !loading) {
+        if (typeToConfirm && typed !== typeToConfirm) return
+        e.preventDefault()
+        onConfirm()
+      }
+    }
+    window.addEventListener("keydown", handleKeyDown)
+    return () => window.removeEventListener("keydown", handleKeyDown)
+  }, [open, onClose, onConfirm, canConfirm, loading, typeToConfirm, typed])
 
-  const canConfirm = typeToConfirm ? typed === typeToConfirm : true
+  if (!open) return null
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">

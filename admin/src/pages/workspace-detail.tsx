@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useParams, useNavigate, Link } from "react-router-dom"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { toast } from "sonner"
@@ -9,6 +9,7 @@ import { ConfirmDialog } from "@/components/confirm-dialog"
 import {
   ArrowLeft, Ban, Trash2, ChevronRight, ChevronDown,
   Users, GitBranch, FileText, Eye, Sparkles, Calendar, Clock, UserMinus,
+  ToggleLeft, ToggleRight, Save, StickyNote,
 } from "lucide-react"
 import { useAuthStore } from "@/stores/auth-store"
 import { canPerform } from "@/lib/permissions"
@@ -42,6 +43,8 @@ export function WorkspaceDetailPage() {
   const [removeMemberConfirm, setRemoveMemberConfirm] = useState<{ open: boolean; memberId: string; name: string }>({ open: false, memberId: "", name: "" })
   const { admin } = useAuthStore()
   const canEdit = canPerform(admin?.role || "", "admin")
+  const [adminNotes, setAdminNotes] = useState("")
+  const [notesLoaded, setNotesLoaded] = useState(false)
 
   const { data: workspace, isLoading } = useQuery({
     queryKey: ["admin-workspace", workspaceId],
@@ -124,6 +127,56 @@ export function WorkspaceDetailPage() {
       toast.error(err.response?.data?.error || "Failed to remove member")
     },
   })
+
+  // Feature flags
+  const { data: featuresData } = useQuery({
+    queryKey: ["admin-workspace-features", workspaceId],
+    queryFn: async () => {
+      const { data } = await api.get(`/api/admin/workspaces/${workspaceId}/features`)
+      return data.features as Record<string, boolean>
+    },
+    enabled: !!workspaceId,
+  })
+
+  const featuresMutation = useMutation({
+    mutationFn: async (features: Record<string, boolean>) => {
+      await api.patch(`/api/admin/workspaces/${workspaceId}/features`, { features })
+    },
+    onSuccess: () => {
+      toast.success("Feature flags updated")
+      queryClient.invalidateQueries({ queryKey: ["admin-workspace-features", workspaceId] })
+    },
+    onError: (err: any) => {
+      toast.error(err.response?.data?.error || "Failed to update feature flags")
+    },
+  })
+
+  const toggleFeature = (key: string) => {
+    const current = featuresData || { aiEnabled: true, widgetsEnabled: true, teamEnabled: true }
+    featuresMutation.mutate({ [key]: !current[key] })
+  }
+
+  // Admin notes
+  const notesMutation = useMutation({
+    mutationFn: async (notes: string) => {
+      await api.patch(`/api/admin/workspaces/${workspaceId}`, { adminNotes: notes })
+    },
+    onSuccess: () => {
+      toast.success("Notes saved")
+    },
+    onError: (err: any) => {
+      toast.error(err.response?.data?.error || "Failed to save notes")
+    },
+  })
+
+  // Sync admin notes from workspace config
+  useEffect(() => {
+    if (workspace && !notesLoaded) {
+      const config = workspace.widgetTheme || {}
+      setAdminNotes((config as Record<string, unknown>)?._adminNotes as string || "")
+      setNotesLoaded(true)
+    }
+  }, [workspace, notesLoaded])
 
   if (isLoading) {
     return (
@@ -335,6 +388,69 @@ export function WorkspaceDetailPage() {
                 <p className="text-xs text-muted-foreground">{s.label}</p>
               </div>
             ))}
+          </div>
+
+          <div className="grid gap-6 lg:grid-cols-2">
+            {/* Feature Flags */}
+            <div className="space-y-4 rounded-lg border border-border p-5">
+              <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Feature Flags</h3>
+              <div className="space-y-3">
+                {([
+                  { key: "aiEnabled", label: "AI Generation", desc: "Allow AI-powered changelog generation" },
+                  { key: "widgetsEnabled", label: "Widget Creation", desc: "Allow creating embeddable widgets" },
+                  { key: "teamEnabled", label: "Team Invitations", desc: "Allow inviting team members" },
+                ] as const).map((flag) => {
+                  const features = featuresData || { aiEnabled: true, widgetsEnabled: true, teamEnabled: true }
+                  const enabled = features[flag.key] !== false
+                  return (
+                    <div key={flag.key} className="flex items-center justify-between rounded-md bg-muted/30 px-3 py-2.5">
+                      <div>
+                        <p className="text-sm font-medium">{flag.label}</p>
+                        <p className="text-xs text-muted-foreground">{flag.desc}</p>
+                      </div>
+                      <button
+                        onClick={() => toggleFeature(flag.key)}
+                        disabled={featuresMutation.isPending || !canEdit}
+                        className="shrink-0"
+                        title={enabled ? "Disable" : "Enable"}
+                      >
+                        {enabled ? (
+                          <ToggleRight className="h-6 w-6 text-emerald-500" />
+                        ) : (
+                          <ToggleLeft className="h-6 w-6 text-muted-foreground" />
+                        )}
+                      </button>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+
+            {/* Admin Notes */}
+            <div className="space-y-4 rounded-lg border border-border p-5">
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+                  <StickyNote className="h-3.5 w-3.5" />
+                  Admin Notes
+                </h3>
+                <button
+                  onClick={() => notesMutation.mutate(adminNotes)}
+                  disabled={notesMutation.isPending || !canEdit}
+                  className="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-xs font-medium hover:bg-muted disabled:opacity-50"
+                >
+                  <Save className="h-3 w-3" />
+                  {notesMutation.isPending ? "Saving..." : "Save Notes"}
+                </button>
+              </div>
+              <textarea
+                value={adminNotes}
+                onChange={(e) => setAdminNotes(e.target.value)}
+                disabled={!canEdit}
+                placeholder="Add internal notes about this workspace..."
+                rows={5}
+                className="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none placeholder:text-muted-foreground focus:ring-1 focus:ring-ring disabled:opacity-50"
+              />
+            </div>
           </div>
         </div>
       )}

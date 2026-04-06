@@ -37,7 +37,7 @@
   ],
   "exclude": [
     "node_modules",
-    "prisma/seed.ts",
-    "prisma/seed-admin.ts"
+    "prisma/seeders/seed.ts",
+    "prisma/seeders/seed-admin.ts"
   ]
 }
