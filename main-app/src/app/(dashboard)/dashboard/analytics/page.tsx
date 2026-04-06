@@ -13,6 +13,7 @@ import {
   Legend,
   Filler,
 } from "chart.js"
+// @ts-ignore - react-chartjs-2 types may not resolve correctly with React 19
 import { Bar } from "react-chartjs-2"
 import {
   BarChart3,
