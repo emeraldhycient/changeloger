@@ -13,8 +13,7 @@ export function SystemPage() {
     refetchInterval: 30000,
   })
 
-  const dbStatus = health?.database ?? health?.db
-  const isDbHealthy = dbStatus?.status === "ok" || dbStatus?.status === "healthy" || dbStatus?.connected === true
+  const isDbHealthy = health?.database === "healthy" || health?.database?.status === "healthy"
 
   return (
     <div className="space-y-8">
@@ -32,13 +31,13 @@ export function SystemPage() {
             icon={Database}
             isLoading={isLoading}
             healthy={isDbHealthy}
-            latency={dbStatus?.latency ?? dbStatus?.responseTime}
+            latency={health?.latency}
           />
           <HealthCard
             label="API Server"
             icon={Server}
             isLoading={isLoading}
-            healthy={health?.status === "ok" || health?.status === "healthy" || !!health}
+            healthy={health?.status === "healthy"}
             latency={health?.latency}
           />
         </div>

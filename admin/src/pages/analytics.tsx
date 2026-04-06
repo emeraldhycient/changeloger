@@ -54,8 +54,8 @@ export function AnalyticsPage() {
       icon: Users,
     },
     {
-      label: "AI Usage Rate",
-      value: usage?.aiAdoption ?? 0,
+      label: "Total AI Generations",
+      value: usage?.totalAIGenerations ?? 0,
       icon: Sparkles,
     },
   ]
