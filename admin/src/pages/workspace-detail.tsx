@@ -36,7 +36,7 @@ export function WorkspaceDetailPage() {
     queryKey: ["admin-workspace", workspaceId],
     queryFn: async () => {
       const { data } = await api.get(`/api/admin/workspaces/${workspaceId}`)
-      return data
+      return data.workspace || data
     },
     enabled: !!workspaceId,
   })

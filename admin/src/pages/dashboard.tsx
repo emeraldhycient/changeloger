@@ -86,7 +86,7 @@ export function DashboardPage() {
     },
     {
       label: "AI Generations",
-      value: loading ? "..." : (stats?.totalAiGenerations ?? 0),
+      value: loading ? "..." : (stats?.aiUsageTotal ?? stats?.totalAiGenerations ?? 0),
       icon: Sparkles,
     },
     {

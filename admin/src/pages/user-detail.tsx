@@ -35,7 +35,7 @@ export function UserDetailPage() {
     queryKey: ["admin-user", userId],
     queryFn: async () => {
       const { data } = await api.get(`/api/admin/users/${userId}`)
-      return data
+      return data.user || data
     },
     enabled: !!userId,
   })
