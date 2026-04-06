@@ -27,6 +27,29 @@ export function proxy(request: NextRequest) {
     }
   }
 
+  // CORS for admin API (admin SPA runs on different origin)
+  if (pathname.startsWith("/api/admin")) {
+    const adminOrigin = process.env.ADMIN_CORS_ORIGIN || "http://localhost:5174"
+    if (request.method === "OPTIONS") {
+      return new NextResponse(null, {
+        headers: {
+          "Access-Control-Allow-Origin": adminOrigin,
+          "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+          "Access-Control-Allow-Headers": "Content-Type, Authorization",
+          "Access-Control-Max-Age": "86400",
+        },
+      })
+    }
+    const response = NextResponse.next()
+    response.headers.set("Access-Control-Allow-Origin", adminOrigin)
+    response.headers.set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+    // Also set security headers
+    response.headers.set("X-Content-Type-Options", "nosniff")
+    response.headers.set("X-Frame-Options", "SAMEORIGIN")
+    response.headers.set("Referrer-Policy", "strict-origin-when-cross-origin")
+    return response
+  }
+
   const response = NextResponse.next()
   response.headers.set("X-Content-Type-Options", "nosniff")
   response.headers.set("X-Frame-Options", "SAMEORIGIN")
