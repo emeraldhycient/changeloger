@@ -13,6 +13,8 @@ export async function GET(request: NextRequest) {
     const search = searchParams.get("search") || ""
     const plan = searchParams.get("plan")
     const suspended = searchParams.get("suspended")
+    const sortBy = searchParams.get("sortBy") || "createdAt"
+    const sortDir = searchParams.get("sortDir") === "asc" ? "asc" as const : "desc" as const
 
     const where: Record<string, unknown> = {}
 
@@ -33,12 +35,19 @@ export async function GET(request: NextRequest) {
       where.isSystemSuspended = false
     }
 
+    const allowedSortFields: Record<string, Record<string, string>> = {
+      createdAt: { createdAt: sortDir },
+      name: { name: sortDir },
+      plan: { plan: sortDir },
+    }
+    const orderBy = allowedSortFields[sortBy] || { createdAt: sortDir }
+
     const [workspaces, total] = await Promise.all([
       prisma.workspace.findMany({
         where,
         skip: (page - 1) * limit,
         take: limit,
-        orderBy: { createdAt: "desc" },
+        orderBy,
         include: {
           owner: { select: { id: true, name: true, email: true } },
           _count: { select: { members: true, repositories: true, releases: true } },

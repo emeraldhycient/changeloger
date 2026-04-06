@@ -34,7 +34,7 @@ export function UsersPage() {
 
   const suspendMutation = useMutation({
     mutationFn: async ({ id, suspend }: { id: string; suspend: boolean }) => {
-      await api.patch(`/api/admin/users/${id}`, { action: suspend ? "suspend" : "unsuspend" })
+      await api.post(`/api/admin/users/${id}/${suspend ? "suspend" : "unsuspend"}`)
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin-users"] })

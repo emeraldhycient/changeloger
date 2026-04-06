@@ -10,8 +10,11 @@ export async function GET(request: NextRequest) {
     await requireAdminAuth(request)
 
     let dbStatus = "healthy"
+    let latency = 0
     try {
+      const start = Date.now()
       await prisma.$queryRaw`SELECT 1`
+      latency = Date.now() - start
     } catch {
       dbStatus = "unhealthy"
     }
@@ -22,6 +25,7 @@ export async function GET(request: NextRequest) {
     return Response.json({
       status: dbStatus === "healthy" ? "healthy" : "degraded",
       database: dbStatus,
+      latency,
       uptime: uptimeSeconds,
       timestamp: new Date().toISOString(),
     })

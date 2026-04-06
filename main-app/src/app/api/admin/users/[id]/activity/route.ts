@@ -76,7 +76,29 @@ export async function GET(
         }),
       ])
 
+    const activities = [
+      ...recentReleases.map((r) => ({
+        type: "release" as const,
+        description: `Published release ${r.version} in ${r.workspace?.name || "unknown workspace"}`,
+        date: r.publishedAt,
+        metadata: { releaseId: r.id, version: r.version, status: r.status, workspace: r.workspace },
+      })),
+      ...recentEntries.map((e) => ({
+        type: "entry" as const,
+        description: `Created ${e.category} entry "${e.title}" in ${e.release?.workspace?.name || "unknown workspace"}`,
+        date: e.createdAt,
+        metadata: { entryId: e.id, title: e.title, category: e.category, release: e.release },
+      })),
+      ...workspaceMemberships.map((m) => ({
+        type: "membership" as const,
+        description: `Joined ${m.workspace?.name || "unknown workspace"} as ${m.role}`,
+        date: m.joinedAt,
+        metadata: { membershipId: m.id, role: m.role, workspace: m.workspace },
+      })),
+    ].sort((a, b) => new Date(b.date ?? 0).getTime() - new Date(a.date ?? 0).getTime())
+
     return Response.json({
+      activities,
       recentReleases,
       recentEntries,
       workspaceMemberships,

@@ -144,7 +144,7 @@ export function DashboardPage() {
                 <XAxis dataKey="date" tick={{ fontSize: 11 }} tickFormatter={(d: string) => d.slice(5)} />
                 <YAxis tick={{ fontSize: 11 }} />
                 <Tooltip />
-                <Area type="monotone" dataKey="users" stroke="#3b82f6" fill="#3b82f680" strokeWidth={2} />
+                <Area type="monotone" dataKey="count" stroke="#3b82f6" fill="#3b82f680" strokeWidth={2} />
               </AreaChart>
             </ResponsiveContainer>
           ) : (

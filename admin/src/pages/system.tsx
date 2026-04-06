@@ -108,7 +108,12 @@ function HealthCard({
         )}
       </div>
       {latency !== undefined && (
-        <p className="mt-2 text-xs text-muted-foreground">Latency: {latency}ms</p>
+        <p className={cn(
+          "mt-2 text-xs",
+          latency < 100 ? "text-emerald-500" : latency < 500 ? "text-amber-500" : "text-red-500",
+        )}>
+          Latency: {latency}ms
+        </p>
       )}
     </div>
   )

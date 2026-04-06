@@ -31,9 +31,27 @@ export async function GET(request: NextRequest) {
       }),
     ])
 
+    const logs = [
+      ...auditLogs.map((log) => ({
+        id: log.id,
+        type: log.action,
+        description: `${log.admin?.name || log.admin?.email || "System"} performed ${log.action}`,
+        date: log.createdAt,
+        admin: log.admin,
+        metadata: log.metadata,
+      })),
+      ...recentSignups.map((user) => ({
+        id: `signup-${user.id}`,
+        type: "user.signup",
+        description: `${user.name || user.email} signed up`,
+        date: user.createdAt,
+        admin: null,
+        metadata: { userId: user.id, email: user.email },
+      })),
+    ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+
     return Response.json({
-      auditLogs,
-      recentSignups,
+      logs,
       pagination: {
         page,
         limit,
