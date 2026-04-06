@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server"
 import { prisma } from "@/lib/db/prisma"
-import { requireAdminAuth } from "@/lib/auth/admin-middleware"
+import { requireAdminAuth, requireAdminRole } from "@/lib/auth/admin-middleware"
+import { createAuditEntry } from "@/lib/auth/audit"
 import { handleApiError, NotFoundError } from "@/lib/utils/errors"
 
 export async function GET(
@@ -36,6 +37,43 @@ export async function GET(
     }
 
     return Response.json({ workspace })
+  } catch (error) {
+    return handleApiError(error)
+  }
+}
+
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> },
+) {
+  try {
+    const session = await requireAdminRole(request, "superadmin")
+    const { id } = await params
+
+    const existing = await prisma.workspace.findUnique({
+      where: { id },
+      select: { id: true, name: true, slug: true, plan: true },
+    })
+    if (!existing) {
+      throw new NotFoundError("Workspace not found")
+    }
+
+    await prisma.workspace.delete({ where: { id } })
+
+    await createAuditEntry({
+      adminUserId: session.adminId,
+      action: "workspace.delete",
+      targetType: "workspace",
+      targetId: id,
+      metadata: {
+        deletedName: existing.name,
+        deletedSlug: existing.slug,
+        deletedPlan: existing.plan,
+      },
+      ipAddress: request.headers.get("x-forwarded-for") || undefined,
+    })
+
+    return Response.json({ success: true })
   } catch (error) {
     return handleApiError(error)
   }
