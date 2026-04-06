@@ -11,9 +11,9 @@
     "format": "prettier --write \"**/*.{ts,tsx}\"",
     "typecheck": "tsc --noEmit",
     "db:push": "prisma db push",
-    "db:seed": "tsx prisma/seed.ts",
-    "db:reset": "prisma db push --force-reset && tsx prisma/seed.ts",
-    "db:seed-admin": "tsx prisma/seed-admin.ts",
+    "db:seed": "tsx prisma/seeders/seed.ts",
+    "db:reset": "prisma db push --force-reset && tsx prisma/seeders/seed.ts",
+    "db:seed-admin": "tsx prisma/seeders/seed-admin.ts",
     "admin:dev": "cd admin && pnpm dev",
     "admin:build": "cd admin && pnpm build"
   },
