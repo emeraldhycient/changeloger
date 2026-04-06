@@ -99,15 +99,11 @@ export function DashboardPage() {
 
   const growthData: any[] = growth?.userGrowth ?? growth?.data ?? growth ?? []
 
-  const planDist: any[] = revenue?.planDistribution ?? []
-  const pieData = planDist.length > 0
-    ? planDist
-    : [
-        { name: "free", value: stats?.planCounts?.free ?? 0 },
-        { name: "pro", value: stats?.planCounts?.pro ?? 0 },
-        { name: "team", value: stats?.planCounts?.team ?? 0 },
-        { name: "enterprise", value: stats?.planCounts?.enterprise ?? 0 },
-      ].filter((p) => p.value > 0)
+  // Transform plan distribution object into array for PieChart
+  const planDistObj = revenue?.planDistribution ?? stats?.planDistribution ?? {}
+  const pieData = Object.entries(planDistObj)
+    .filter(([, count]) => (count as number) > 0)
+    .map(([name, value]) => ({ name, value }))
 
   const recentActivity: any[] = activityData?.logs ?? activityData ?? []
   const topWorkspaces: any[] = stats?.topWorkspaces ?? []

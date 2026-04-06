@@ -55,8 +55,18 @@ export function BillingPage() {
     },
   ]
 
-  const planDist: any[] = revenue?.planDistribution ?? []
-  const churnRisk: any[] = churnData?.workspaces ?? churnData ?? []
+  // Transform plan distribution object { free: 2, pro: 0 } into array for PieChart
+  const planDistObj = revenue?.planDistribution ?? {}
+  const planDist: any[] = Object.entries(planDistObj)
+    .filter(([, count]) => (count as number) > 0)
+    .map(([name, value]) => ({ name, value }))
+
+  // Merge all churn risk categories into a flat array
+  const churnRisk: any[] = [
+    ...(churnData?.trialsExpiringSoon ?? []).map((ws: any) => ({ ...ws, riskReason: "Trial expiring soon" })),
+    ...(churnData?.noRecentReleases ?? []).map((ws: any) => ({ ...ws, riskReason: "No releases in 30 days" })),
+    ...(churnData?.noRecentLogins ?? []).map((ws: any) => ({ ...ws, riskReason: "No logins in 14 days" })),
+  ]
 
   return (
     <div className="space-y-8">
